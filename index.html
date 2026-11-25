@@ -39,17 +39,33 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .gbtn[aria-disabled=true]{color:var(--mute)}
 #title .note{position:absolute;left:0;right:0;bottom:40px;text-align:center;font-size:18px;color:var(--mute)}
 /* in-game */
-#phase{left:60px;top:48px;height:64px;padding:0 36px;display:flex;align-items:center;gap:18px;font-size:24px;border-radius:32px;white-space:nowrap}
+#phase{left:64px;top:56px;display:flex;align-items:baseline;gap:18px;font-size:25px;letter-spacing:.12em;text-shadow:0 2px 18px #000}
 #phase b{color:var(--gold);font-weight:600}
-#hud{position:absolute;right:60px;top:48px;display:flex;gap:18px}
-.hbtn{position:relative;width:128px;height:64px;border-radius:32px;font:600 22px/1 "Cormorant Garamond",serif;letter-spacing:.18em}
-.hbtn.on{color:var(--gold);text-shadow:0 0 14px rgba(217,174,85,.8)}
-#dialog{left:120px;bottom:56px;width:1680px;height:290px;padding:40px 70px}
-#dialog .nm{font-size:28px;font-weight:600;letter-spacing:.12em;min-height:40px}
-#dialog .tx{margin-top:12px;font-size:36px;line-height:1.7;white-space:pre-wrap}
-#dialog .nx{position:absolute;right:56px;bottom:34px;width:0;height:0;border:12px solid transparent;border-top:16px solid var(--gold);animation:bob 1s ease-in-out infinite;opacity:0}
+#phase span{color:var(--ink)}
+#hud{position:absolute;z-index:1;right:54px;top:44px;display:flex;align-items:center;gap:12px}
+#hudItems{display:flex;gap:10px}
+#hudItems[hidden]{display:none}
+.hbtn,#hudToggle{min-width:70px;height:56px;color:var(--ink);text-shadow:0 2px 8px #000,0 0 14px #000}
+.hbtn{padding:0 14px;font:600 24px/1 "Cormorant Garamond",serif;letter-spacing:.13em}
+.hbtn:hover,.hbtn.on,#hudToggle{color:var(--gold)}
+#hudToggle{font-size:31px}
+#dialog{inset:0;transition:opacity .2s}
+#dialog,#dialog.on{pointer-events:none}
+#dialog::before{content:"";position:absolute;inset:59% 0 0;background:linear-gradient(transparent,rgba(8,7,12,.88))}
+#dialog.still::before{top:76%;background:linear-gradient(transparent,rgba(8,7,12,.62))}
+#dialog.monologue::before{inset:0;background:radial-gradient(ellipse at center,rgba(8,7,12,.78),transparent 68%)}
+.caption{position:absolute;left:50%;bottom:64px;translate:-50% 0;width:1220px;text-align:center;text-shadow:0 2px 12px #000,0 0 24px #000}
+#dialog.still .caption{bottom:54px;width:1400px}
+#dialog.monologue .caption{top:50%;bottom:auto;translate:-50% -50%;width:1080px}
+#dialog .nm{position:absolute;bottom:100%;left:0;right:0;margin-bottom:10px;font-size:27px;font-weight:600;letter-spacing:.24em}
+#dialog .nm:empty,.still .nm,.monologue .nm{display:none}
+#dialog .tx{min-height:1.65em;font-size:42px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;text-wrap:pretty}
+#dialog.still .tx{font-size:36px}
+#dialog .tx.long{text-align:left}
+.silent #hud,.silent #phase{visibility:hidden}
+#dialog .nx{position:absolute;top:100%;left:50%;translate:-50% 4px;color:var(--gold);font-size:19px;opacity:0}
 #dialog.ready .nx{opacity:1}
-@keyframes bob{50%{translate:0 8px}}
+#dialog.still .nx{visibility:hidden}
 #choices{position:absolute;inset:0;pointer-events:none}
 .ink{position:absolute;width:640px;height:120px;padding:0 20px;font-size:34px;letter-spacing:.1em;color:transparent;pointer-events:auto;transition:color .7s .3s,text-shadow .3s}
 .ink.on{color:var(--ink)}
@@ -58,9 +74,9 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .ink.on:hover::before{opacity:1}
 .s0{left:90px;top:150px;text-align:left}.s1{right:90px;top:150px;text-align:right}
 .s2{left:90px;bottom:110px;text-align:left}.s3{right:90px;bottom:110px;text-align:right}
-.choosing #dialog{left:600px;width:720px;padding:40px 50px;text-align:center}
-#dialog{transition:opacity .28s,left .6s cubic-bezier(.2,.8,.2,1),width .6s cubic-bezier(.2,.8,.2,1)}
-.choosing #phase,.choosing .hbtn{opacity:0!important;pointer-events:none}
+.choosing #dialog::before{inset:0;background:radial-gradient(ellipse at center,rgba(8,7,12,.83),transparent 64%)}
+.choosing #dialog .caption{top:50%;bottom:auto;translate:-50% -50%;width:770px}
+.choosing #phase,.choosing #hud{visibility:hidden}
 .nogl .ink{background:rgba(5,5,8,.85);border-radius:60px;opacity:0;transition:opacity .8s,color .7s .3s}.nogl .ink.on{opacity:1}
 /* dialogs */
 .dlg{position:absolute;inset:0;background:rgba(0,0,0,.35)}
@@ -93,15 +109,20 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
   </div>
 
   <div id="game" class="layer hidden">
-    <div id="phase" class="glass"><b>プロローグ</b><span>流れ星の夜</span></div>
+    <div id="phase" class="fadeable"><b></b><span></span></div>
     <div id="hud">
-      <button class="hbtn glass" id="hLog">LOG</button>
-      <button class="hbtn glass" id="hAuto">AUTO</button>
-      <button class="hbtn glass" id="hSkip">SKIP</button>
-      <button class="hbtn glass" id="hMenu">MENU</button>
+      <div id="hudItems" hidden>
+        <button class="hbtn" id="hLog">LOG</button>
+        <button class="hbtn" id="hAuto" aria-pressed="false">AUTO</button>
+        <button class="hbtn" id="hSkip" aria-pressed="false">SKIP</button>
+        <button class="hbtn" id="hMenu">MENU</button>
+      </div>
+      <button id="hudToggle" aria-label="操作メニュー" aria-controls="hudItems" aria-expanded="false">✦</button>
     </div>
     <div id="choices" class="hidden"></div>
-    <div id="dialog" class="glass fadeable"><div class="nm"></div><div class="tx"></div><span class="nx"></span></div>
+    <div id="dialog" class="fadeable">
+      <div class="caption"><div class="nm"></div><div class="tx"></div><span class="nx" aria-hidden="true">✦</span></div>
+    </div>
   </div>
 
   <div id="fader"></div>
@@ -140,7 +161,7 @@ const J = 'Join';
    @bg 背景  @in 名前 位置 秒  @out 名前 秒  @clear 秒  @fadein 秒  @fadeout 秒
    @in 名前 位置 秒 表情（表情は省略可：Default / Live など）
    @meteor 秒  @flash 秒  @shake  @wait 秒  @phase 大|小  @head 場面|題|説明
-   @cg 名前 秒 / @cg off 秒  @shower 強さ 秒  @sparkle 強さ 秒
+   @cg 名前 秒 / @cg off 秒  @shower 強さ 秒  @sparkle 強さ 秒  @monologue 本文
    行頭 + は直前と同時実行（Join） */
 const NAME2ID = { カリル:1, フィルウ:2, テオ:3, ジョナス:0, リヴ:5, レイフ:6, ルネ:7 };
 function fromScript(src, id){
@@ -165,6 +186,7 @@ function fromScript(src, id){
       else if (c==='shake')   add(join,'CameraShake');
       else if (c==='wait')    add(join,'Wait',0,'','','','Center',n||1);
       else if (c==='phase')   add(join,'GameCommand',0,'phase '+a.join(' '));
+      else if (c==='monologue') add(join,'Descriptive',0,a.join(' '),'','','monologue');
       else if (c==='head')    head = a.join(' ');
       else if (c==='cg')      add(join,'ShowCG',0,'','',a[0],'Center',a[1]!==undefined?+a[1]:1);
       else if (c==='shower')  add(join,'Effect',0,'Shower:'+a[0],'','','Center',a[1]!==undefined?+a[1]:1.5);
@@ -478,26 +500,58 @@ function tween(dur, fn){
 const sleep = s => tween(s, ()=>{});
 
 const view = {
-  typing:null,
+  finishReveal:null,
   show(el, on){ el.classList.toggle('on', on); },
-  setDialog(name, color, text){
-    const d = $('dialog'); this.show(d, true); d.classList.remove('ready');
-    d.querySelector('.nm').textContent = name; d.querySelector('.nm').style.color = color;
-    const tx = d.querySelector('.tx'); tx.textContent = '';
+  setDialog(name, color, text, mode = ''){
+    this.finishReveal?.();
+    const d = $('dialog');
+    d.classList.remove('ready');
+    d.classList.toggle('still', !!R.cg);
+    d.classList.toggle('monologue', !R.cg && mode === 'monologue');
+    const nm = d.querySelector('.nm');
+    nm.textContent = name;
+    nm.style.color = color;
+    const tx = d.querySelector('.tx');
+    tx.textContent = text;
+    tx.classList.toggle('long', text.length > 52 || text.includes('\n'));
+    this.show(d, !!text);
     S.log.push({n:name, t:text});
-    return new Promise(res=>{
-      let i = 0, iv = 0;
-      const done = () => { clearInterval(iv); tx.textContent = text; this.typing = null; d.classList.add('ready'); res(); };
-      if (S.skip){ done(); return; }
-      iv = setInterval(()=>{ tx.textContent = text.slice(0, ++i); if (i >= text.length) done(); }, 38);
-      this.typing = done;
+    if (!text) return;
+    if (S.skip || matchMedia('(prefers-reduced-motion: reduce)').matches){
+      d.classList.add('ready');
+      return;
+    }
+    return new Promise(resolve=>{
+      const animation = d.querySelector('.caption').animate([{opacity:0},{opacity:1}], {
+        duration:220, easing:'ease-out'
+      });
+      this.finishReveal = () => {
+        animation.onfinish = null;
+        animation.cancel();
+        this.finishReveal = null;
+        d.classList.add('ready');
+        resolve();
+      };
+      animation.onfinish = this.finishReveal;
     });
   },
-  resetDialog(){ const d=$('dialog'); this.show(d,false); d.querySelector('.tx').textContent=''; d.querySelector('.nm').textContent=''; },
+  resetDialog(){
+    this.finishReveal?.();
+    const d = $('dialog');
+    this.show(d, false);
+    d.classList.remove('still','monologue','ready');
+    d.querySelector('.tx').textContent = '';
+    d.querySelector('.nm').textContent = '';
+  },
   showChoices(items, head){
-    const d = $('dialog'); this.show(d, true); d.classList.remove('ready');
+    this.resetDialog();
+    const d = $('dialog');
     const nm = d.querySelector('.nm'); nm.textContent = [head[0],head[1]].filter(Boolean).join('　'); nm.style.color = '#d9ae55';
-    d.querySelector('.tx').textContent = fill(head[2]||'');
+    const prompt = d.querySelector('.tx');
+    prompt.textContent = fill(head[2]||'');
+    prompt.classList.remove('long');
+    clearTimeout(this.phaseTimer);
+    this.show($('phase'), false);
     const box = $('choices'); box.innerHTML = '';
     const slots = {1:[3], 2:[0,3], 3:[0,1,3], 4:[0,1,2,3]}[Math.min(items.length,4)];
     const now = performance.now();
@@ -507,13 +561,24 @@ const view = {
         const b = document.createElement('button'); b.className = 'cbtn ink s' + slots[k]; b.textContent = fill(it.label);
         b.dataset.slot = slots[k]; b.dataset.t0 = now + k*220;
         setTimeout(()=>b.classList.add('on'), k*220 + 700);
-        b.onclick = e => { e.stopPropagation(); box.classList.add('hidden'); $('game').classList.remove('choosing'); S.modal=false; this.resetDialog(); res(it.id); };
+        b.onclick = e => { e.stopPropagation(); clearTimeout(this.choicePromptTimer); box.classList.add('hidden'); $('game').classList.remove('choosing'); S.modal=false; this.resetDialog(); res(it.id); };
         box.append(b);
       });
       box.classList.remove('hidden'); S.modal = true;
+      this.choicePromptTimer = setTimeout(()=>{
+        if (!box.classList.contains('hidden')) this.show(d, true);
+      }, 360);
     });
   },
-  setPhase(t){ const [a,b=''] = t.split('|'); $('phase').querySelector('b').textContent=a; $('phase').querySelector('span').textContent=b; },
+  setPhase(t){
+    const [chapter, scene = ''] = t.split('|');
+    const phase = $('phase');
+    phase.querySelector('b').textContent = chapter;
+    phase.querySelector('span').textContent = scene;
+    this.show(phase, true);
+    clearTimeout(this.phaseTimer);
+    this.phaseTimer = setTimeout(()=>this.show(phase, false), 2400);
+  },
   toast(t){ const el=$('toast'); el.textContent=t; this.show(el,true); clearTimeout(this._tt); this._tt=setTimeout(()=>this.show(el,false),1800); }
 };
 
@@ -539,7 +604,7 @@ OrderHandler('Talk', o=>{
   R.chars.forEach((c,i)=>c.sp = (k<0 || i===k) ? 1 : .5);
   return view.setDialog(fill(o.override_display_name || (ch?ch.n:S.player)), ch?hex(ch.c):'#d9ae55', fill(o.dialog_text));
 });
-OrderHandler('Descriptive', o=>{ R.chars.forEach(c=>c.sp=1); return view.setDialog('', '', fill(o.dialog_text)); });
+OrderHandler('Descriptive', o=>{ R.chars.forEach(c=>c.sp=1); return view.setDialog('', '', fill(o.dialog_text), o.position); });
 OrderHandler('CharacterEntry', o=>{
   const ch = CHARS[o.speaker_id]; const c = R.chars[POS[o.position] ?? 1];
   Object.assign(c, {id:o.speaker_id, s:ch.s, c:ch.c, g: R.scene===0 && R.bg!=='slope' && R.bg!=='observatory' ? 1 : 0, sp:1, fx:o.facial_expression||'Default'});
@@ -554,7 +619,12 @@ OrderHandler('ShowCG', o=>{
 });
 OrderHandler('FadeIn', o=>tween(o.duration, k=>$('fader').style.opacity=1-k));
 OrderHandler('FadeOut', o=>tween(o.duration, k=>$('fader').style.opacity=k));
-OrderHandler('Wait', o=>sleep(o.duration));
+OrderHandler('Wait', o=>{
+  view.resetDialog();
+  const game = $('game');
+  game.classList.add('silent');
+  return sleep(o.duration).then(()=>game.classList.remove('silent'));
+});
 OrderHandler('ResetTexts', ()=>view.resetDialog());
 OrderHandler('HideDialog', ()=>view.show($('dialog'),false));
 OrderHandler('CameraShake', ()=>{ stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake'); });
@@ -585,7 +655,7 @@ function waitAdvance(){
   });
 }
 function fireAdvance(){
-  if (view.typing){ view.typing(); return; }
+  if (view.finishReveal){ view.finishReveal(); return; }
   if (advance){ const f=advance; advance=null; clearTimeout(autoT); f(); }
 }
 
@@ -607,15 +677,38 @@ class StoryPlayer{
 
 /* ============ 5. 画面遷移・入力 ============ */
 let player = null;
+let hudTimer = 0;
+function setHud(open){
+  $('hudItems').hidden = !open;
+  $('hudToggle').setAttribute('aria-expanded', String(open));
+  clearTimeout(hudTimer);
+  if (open) hudTimer = setTimeout(()=>{
+    if (!$('hud').matches(':hover,:focus-within')) setHud(false);
+  }, 2200);
+}
+$('hudToggle').onclick = ()=>setHud($('hudItems').hidden);
+$('hud').addEventListener('pointerleave', ()=>{ if (!$('hud').matches(':focus-within')) setHud(false); });
+$('hud').addEventListener('focusout', e=>{ if (!$('hud').contains(e.relatedTarget)) setHud(false); });
+stage.addEventListener('pointermove', e=>{
+  if (!S.modal && !$('game').matches('.hidden,.silent') && e.pointerType === 'mouse' && !e.target.closest('#hud')) setHud(true);
+});
 function openDlg(id){ $(id).classList.remove('hidden'); S.modal = true; }
 function closeDlg(id){ $(id).classList.add('hidden'); S.modal = !$('choices').classList.contains('hidden'); }
 function toTitle(){
   if (player) player.alive = false; advance = null; clearTimeout(autoT);
   for (const id of ['dMenu','dEnd','dLog','dName']) $(id).classList.add('hidden');
   $('choices').classList.add('hidden'); $('game').classList.remove('choosing'); view.resetDialog(); 
-  S.modal=false; S.auto=S.skip=false; $('hAuto').classList.remove('on'); $('hSkip').classList.remove('on');
+  S.modal=false; S.auto=S.skip=false;
+  setHud(false);
+  clearTimeout(view.phaseTimer);
+  clearTimeout(view.choicePromptTimer);
+  view.show($('phase'), false);
+  for (const id of ['hAuto','hSkip']){
+    $(id).classList.remove('on');
+    $(id).setAttribute('aria-pressed', 'false');
+  }
   R.chars.forEach(c=>{c.a=0;c.id=0}); R.scene=0; R.bg=''; R.cg=''; R.cgA=0; R.shower=0; R.sparkle=0; $('fader').style.opacity=0;
-  $('game').classList.add('hidden'); $('title').classList.remove('hidden');
+  $('game').classList.remove('silent'); $('game').classList.add('hidden'); $('title').classList.remove('hidden');
 }
 function onEnd(){ S.auto=S.skip=false; openDlg('dEnd'); }
 
@@ -634,8 +727,8 @@ $('hLog').onclick = e=>{ e.stopPropagation();
   const list=$('logList'); list.innerHTML='';
   for (const l of S.log){ const p=document.createElement('p'); if(l.n){ const b=document.createElement('b'); b.textContent=l.n; p.append(b); } p.append(document.createTextNode(l.t)); list.append(p); }
   openDlg('dLog'); list.scrollTop = list.scrollHeight; };
-$('hAuto').onclick = e=>{ e.stopPropagation(); S.auto=!S.auto; e.currentTarget.classList.toggle('on',S.auto); if(S.auto && advance && !view.typing) autoT=setTimeout(fireAdvance,1500); };
-$('hSkip').onclick = e=>{ e.stopPropagation(); S.skip=!S.skip; e.currentTarget.classList.toggle('on',S.skip); if(S.skip) fireAdvance(); };
+$('hAuto').onclick = e=>{ e.stopPropagation(); S.auto=!S.auto; e.currentTarget.classList.toggle('on',S.auto); e.currentTarget.setAttribute('aria-pressed', String(S.auto)); if(S.auto && advance && !view.finishReveal) autoT=setTimeout(fireAdvance,1500); };
+$('hSkip').onclick = e=>{ e.stopPropagation(); S.skip=!S.skip; e.currentTarget.classList.toggle('on',S.skip); e.currentTarget.setAttribute('aria-pressed', String(S.skip)); if(S.skip) fireAdvance(); };
 $('hMenu').onclick = e=>{ e.stopPropagation(); openDlg('dMenu'); };
 $('mTitle').onclick = toTitle; $('eTitle').onclick = toTitle;
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); closeDlg(b.dataset.close); });
@@ -643,7 +736,7 @@ stage.addEventListener('click', e=>{ if (S.modal || $('game').classList.contains
 addEventListener('keydown', e=>{
   if ($('game').classList.contains('hidden')) return;
   if (e.key==='Escape'){ for(const id of ['dLog','dMenu']) if(!$(id).classList.contains('hidden')){ closeDlg(id); return; } if(!S.modal) openDlg('dMenu'); return; }
-  if ((e.key==='Enter'||e.key===' ') && !S.modal){ e.preventDefault(); fireAdvance(); }
+  if ((e.key==='Enter'||e.key===' ') && !S.modal && !e.target.closest('button,input')){ e.preventDefault(); fireAdvance(); }
 });
 
 /* ============ 6. WebGL：背景・仮立ち絵・liquid glass ============ */
@@ -652,6 +745,10 @@ uniform vec2 uRes;uniform float uPx,uTime,uScene,uMeteor;
 uniform vec4 uChar[3];uniform vec3 uCol[3];uniform float uSp[3];
 uniform vec4 uGlass[14];uniform float uGR[14];uniform float uGA[14];uniform int uGN;
 uniform vec4 uCP;uniform vec4 uCH;
+#ifdef INK_TEXTURE
+uniform sampler2D uInk;
+uniform float uInkOn;
+#endif
 uniform sampler2D uBg,uCG,uT0,uT1,uT2,uFxM,uFxS,uFxK;uniform float uBgOn,uCGA,uFxOn;uniform float uTOn[3];uniform vec4 uTR[3];uniform vec2 uFx;
 float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
 float sdB(vec2 p,vec2 b,float r){vec2 q=abs(p)-b+r;return length(max(q,0.))+min(max(q.x,q.y),0.)-r;}
@@ -726,11 +823,19 @@ void main(){vec2 p=vec2(gl_FragCoord.x/uPx,uRes.y-gl_FragCoord.y/uPx);vec3 c=wor
   if(d>260.)continue;
   float ink=1.-smoothstep(-2.,2.,d);
   c=mix(c,c*.45,exp(-max(d,0.)*.025)*(1.-ink)*.75*e);
-  c=mix(c,vec3(.014,.013,.02)+vec3(.035,.03,.045)*fbm(p*.02+uTime*.03),ink*.95);
+  vec3 inkColor=vec3(.014,.013,.02)+vec3(.035,.03,.045)*fbm(p*.02+uTime*.03);
+#ifdef INK_TEXTURE
+  if(uInkOn>.5){
+   vec2 grainUV=abs(p-cn)/vec2(850.,850.);
+   float grain=texture2D(uInk,grainUV).r;
+   inkColor=mix(inkColor,mix(vec3(.008,.007,.012),vec3(.11,.096,.10),grain),.78);
+  }
+#endif
+  c=mix(c,inkColor,ink*.95);
   c+=vec3(.86,.68,.33)*exp(-abs(d)*.35)*(.18+.5*uCH[i])*e;}
  vec2 v=p/uRes-.5;c*=1.-dot(v,v)*.6;gl_FragColor=vec4(c,1.);}`;
 
-let gl = null, U = {}, px = 1, scale = 1;
+let gl = null, U = {}, px = 1, scale = 1, useInkTexture = false;
 function fit(){
   scale = Math.min(innerWidth/1920, innerHeight/1080);
   stage.style.transform = `translate(-50%,-50%) scale(${scale})`;
@@ -744,7 +849,8 @@ function initGL(){
   const sh = (t,src)=>{ const s=gl.createShader(t); gl.shaderSource(s,src); gl.compileShader(s); if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
   const pr = gl.createProgram();
   gl.attachShader(pr, sh(gl.VERTEX_SHADER, 'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}'));
-  gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, FS));
+  useInkTexture = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS) >= 9;
+  gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, useInkTexture ? '#define INK_TEXTURE\n' + FS : FS));
   gl.bindAttribLocation(pr, 0, 'a');
   gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
   gl.useProgram(pr);
@@ -754,6 +860,10 @@ function initGL(){
   for (const n of ['uRes','uPx','uTime','uScene','uMeteor','uChar','uCol','uSp','uGlass','uGR','uGA','uGN','uCP','uCH',
     'uBgOn','uCGA','uFxOn','uTOn','uTR','uFx']) U[n] = gl.getUniformLocation(pr, n);
   ['uBg','uCG','uT0','uT1','uT2','uFxM','uFxS','uFxK'].forEach((n,i)=>gl.uniform1i(gl.getUniformLocation(pr,n), i));
+  if (useInkTexture){
+    gl.uniform1i(gl.getUniformLocation(pr, 'uInk'), 8);
+    U.uInkOn = gl.getUniformLocation(pr, 'uInkOn');
+  }
   return true;
 }
 /* 画像テクスチャ。読み込めなかったものは手続き描画にフォールバック */
@@ -778,8 +888,12 @@ function bindTex(unit, t){ gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl
 const tOn = new Float32Array(3), tR = new Float32Array(12);
 const gBuf = new Float32Array(56), gR = new Float32Array(14), gA = new Float32Array(14);
 const cP = new Float32Array(4), cH = new Float32Array(4);
-const cBuf = new Float32Array(12), colBuf = new Float32Array(9), spBuf = new Float32Array(3);
+const cBuf = new Float32Array(12), colBuf = new Float32Array(9), spBuf = new Float32Array(3).fill(1);
+let lastFrame = 0;
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 function frame(t){
+  const brightnessBlend = reducedMotion.matches ? 1 : 1 - Math.exp(-(t-lastFrame)/90);
+  lastFrame = t;
   const sr = stage.getBoundingClientRect(); let n = 0;
   for (const el of document.querySelectorAll('.glass')){
     if (n >= 14) break;
@@ -791,9 +905,9 @@ function frame(t){
   cP.fill(0); cH.fill(0);
   for (const el of document.querySelectorAll('#choices:not(.hidden) .ink')){
     const k = Number(el.dataset.slot);
-    cP[k] = Math.max(0, Math.min(1, (t - Number(el.dataset.t0)) / 1600)); cH[k] = el.matches(':hover') ? 1 : 0;
+    cP[k] = Math.max(0, Math.min(1, (t - Number(el.dataset.t0)) / 1600)); cH[k] = el.matches(':hover,:focus-visible') ? 1 : 0;
   }
-  R.chars.forEach((c,i)=>{ cBuf.set([SLOT_X[i], c.a, c.s, c.g], i*4); colBuf.set(c.c, i*3); spBuf[i] = c.sp; });
+  R.chars.forEach((c,i)=>{ cBuf.set([SLOT_X[i], c.a, c.s, c.g], i*4); colBuf.set(c.c, i*3); spBuf[i] += (c.sp - spBuf[i]) * brightnessBlend; });
   gl.uniform2f(U.uRes,1920,1080); gl.uniform1f(U.uPx,px); gl.uniform1f(U.uTime,t/1000);
   gl.uniform1f(U.uScene, $('game').classList.contains('hidden') ? 0 : R.scene); gl.uniform1f(U.uMeteor, R.meteor);
   gl.uniform4fv(U.uChar,cBuf); gl.uniform3fv(U.uCol,colBuf); gl.uniform1fv(U.uSp,spBuf);
@@ -813,6 +927,9 @@ function frame(t){
   gl.uniform1fv(U.uTOn, tOn); gl.uniform4fv(U.uTR, tR);
   const fm = bindTex(5, tex(FX_IMG.meteor)), fs = bindTex(6, tex(FX_IMG.shower, true)), fk = bindTex(7, tex(FX_IMG.sparkle, true));
   gl.uniform1f(U.uFxOn, fm||fs||fk ? 1 : 0); gl.uniform2f(U.uFx, fs ? R.shower : 0, fk ? R.sparkle : 0);
+  if (useInkTexture){
+    gl.uniform1f(U.uInkOn, bindTex(8, inGame ? tex('assets/ui_ink.webp') : null) ? 1 : 0);
+  }
   gl.drawArrays(gl.TRIANGLES,0,3);
   requestAnimationFrame(frame);
 }
