@@ -8,7 +8,8 @@
 
 - 画面：16:9（1920×1080 をウィンドウに合わせて縮小）
 - HUD：WebGL シェーダーによる liquid glass
-- 素材：すべて仮置き（キャラはシルエット、音なし）
+- 素材：`assets/`（背景・立ち絵・スチル・エフェクト）。読み込めない素材はシェーダーの仮描画に切り替わる。音なし
+- アートの仕様：`docs/HOTHOUSE_art_brief.md`
 
 ## 収録範囲
 
@@ -31,13 +32,16 @@
 
 | 行 | 内容 |
 |---|---|
-| `@bg 背景` | 背景変更（lab / observatory / church） |
-| `@in 名前 位置 秒` | 登場（Left / Center / Right） |
+| `@bg 背景` | 背景変更（slope / observatory / lab / church） |
+| `@in 名前 位置 秒 表情` | 登場（Left / Center / Right）。表情は省略可（例：テオの `Live`＝生前） |
 | `@out 名前 秒` / `@clear 秒` | 退場 / 全員退場 |
 | `@fadein 秒` / `@fadeout 秒` | フェード |
 | `@meteor 秒` / `@flash 秒` / `@shake` | 演出 |
 | `@wait 秒` | 待機 |
 | `@phase 大\|小` | 左上の章表示 |
+| `@cg 名前 秒` / `@cg off 秒` | スチル表示 / 消去 |
+| `@shower 強さ 秒` | 流星群テクスチャ（0で消える） |
+| `@sparkle 強さ 秒` | 星のきらめきテクスチャ |
 | `@head 場面\|題\|説明` | 次の選択肢の見出し |
 
 行頭に `+` を付けると直前の行と同時に実行（Join）。

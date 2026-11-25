@@ -130,21 +130,23 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 {
 /* ============ 1. シナリオ（Aube の order JSON と同じ列構成） ============ */
 // r(order_id, order_type, sequence, speaker_id, dialog_text, override_display_name, file_path, position, duration)
-const r = (id, type, seq = 'Append', spk = 0, text = '', over = '', file = '', pos = 'Center', dur = 0) => ({
+const r = (id, type, seq = 'Append', spk = 0, text = '', over = '', file = '', pos = 'Center', dur = 0, face = 'Default') => ({
   order_id: id, order_type: type, sequence: seq, speaker_id: spk, dialog_text: text,
-  override_display_name: over, file_path: file, position: pos, facial_expression: 'Default',
+  override_display_name: over, file_path: file, position: pos, facial_expression: face,
   override_text_speed: 0, duration: dur });
 const J = 'Join';
 /* ---- 原稿 → order 変換（Notion「セリフ」の書き方そのまま＋演出行 @） ----
    名前：本文 / 表示名＝話者：本文 / 地の文 / ＞選択肢 / （暗転）
    @bg 背景  @in 名前 位置 秒  @out 名前 秒  @clear 秒  @fadein 秒  @fadeout 秒
+   @in 名前 位置 秒 表情（表情は省略可：Default / Live など）
    @meteor 秒  @flash 秒  @shake  @wait 秒  @phase 大|小  @head 場面|題|説明
+   @cg 名前 秒 / @cg off 秒  @shower 強さ 秒  @sparkle 強さ 秒
    行頭 + は直前と同時実行（Join） */
 const NAME2ID = { カリル:1, フィルウ:2, テオ:3, ジョナス:0, リヴ:5, レイフ:6, ルネ:7 };
 function fromScript(src, id){
   const out = [], on = new Set(); let head = '';
-  const add = (join, type, spk=0, text='', over='', file='', pos='Center', dur=0) =>
-    out.push(r(id++, type, join?J:'Append', spk, text, over, file, pos, dur));
+  const add = (join, type, spk=0, text='', over='', file='', pos='Center', dur=0, face='Default') =>
+    out.push(r(id++, type, join?J:'Append', spk, text, over, file, pos, dur, face));
   const clear = (join, d) => { let first = true; for (const s of on){ add(join || !first, 'CharacterExit', s, '', '', '', 'Center', d); first = false; } on.clear(); };
   const lines = src.split('\n').map(s=>s.trim()).filter(Boolean);
   for (let i = 0; i < lines.length; i++){
@@ -153,7 +155,7 @@ function fromScript(src, id){
     if (L[0] === '@'){
       const [c, ...a] = L.slice(1).split(/\s+/), n = Number(a.at(-1));
       if (c==='bg') add(join,'ChangeBackground',0,'','',a[0]);
-      else if (c==='in'){ on.add(NAME2ID[a[0]]); add(join,'CharacterEntry',NAME2ID[a[0]],'','','',a[1]||'Center',+(a[2]||.5)); }
+      else if (c==='in'){ on.add(NAME2ID[a[0]]); add(join,'CharacterEntry',NAME2ID[a[0]],'','','',a[1]||'Center',+(a[2]||.5),a[3]||'Default'); }
       else if (c==='out'){ on.delete(NAME2ID[a[0]]); add(join,'CharacterExit',NAME2ID[a[0]],'','','','Center',+(a[1]||.5)); }
       else if (c==='clear') clear(join, +(a[0]||.8));
       else if (c==='fadein')  add(join,'FadeIn',0,'','','','Center',n||1.4);
@@ -164,6 +166,9 @@ function fromScript(src, id){
       else if (c==='wait')    add(join,'Wait',0,'','','','Center',n||1);
       else if (c==='phase')   add(join,'GameCommand',0,'phase '+a.join(' '));
       else if (c==='head')    head = a.join(' ');
+      else if (c==='cg')      add(join,'ShowCG',0,'','',a[0],'Center',a[1]!==undefined?+a[1]:1);
+      else if (c==='shower')  add(join,'Effect',0,'Shower:'+a[0],'','','Center',a[1]!==undefined?+a[1]:1.5);
+      else if (c==='sparkle') add(join,'Effect',0,'Sparkle:'+a[0],'','','Center',a[1]!==undefined?+a[1]:1.5);
       continue;
     }
     if (L[0] === '＞'){
@@ -183,19 +188,22 @@ function fromScript(src, id){
 
 const PROLOGUE = `
 @phase プロローグ|坂道
-@bg observatory
-+@fadein 1.6
+@bg slope
++@sparkle .35 .1
++@fadein 2.2
 麓の街の灯りが、背中のほうで小さくなっていく。
 展望台へ続く坂道は、夜になると誰も通らない。
 僕は先に坂の上まで走って、振り返った。
+@cg cg_01 1.2
 二人は、まだずっと下にいた。
-@in ルネ Left .6
-+@in テオ Right .6
 ルネ：テオ、見て。{player}ったらまた先に行っちゃった。
 ルネ：わたし、この靴で走れないの。ひどいと思わない？
-ルネは白いワンピースに、よそゆきの赤い靴を履いていた。流れ星を見に行くだけなのに。
+ルネは白いコートの下に、よそゆきの赤い靴を履いていた。流れ星を見に行くだけなのに。
 テオ：ひどいね。はい、ルネ。
 テオが手を差し出す。ルネは当然みたいにその手を取って、一歩ずつ坂をのぼってくる。
+@cg off 1
++@in ルネ Left .8
++@in テオ Right .8 Live
 ルネ：テオはやさしい。だから好き。
 テオ：はいはい。
 テオは笑って、ルネの手を引いた。前を向いたまま、少しだけ、手に力が入ったように見えた。
@@ -237,7 +245,14 @@ const PROLOGUE = `
 僕はなぜか、麓のほうを振り返った。
 尾根の途中に、研究所の灯りがひとつだけ点いていた。
 
+@fadeout 1.2
++@clear 1
 @phase プロローグ|流れ星の夜
+@bg observatory
++@sparkle .7 .1
+@in ルネ Left .1
++@in テオ Right .1 Live
++@fadein 1.8
 展望台は、古い木の床と、錆びた柵だけの場所だった。
 僕たちが座るたびに、床は小さく軋んだ。
 ルネ：テオ、ハンカチ敷いて。ワンピース汚れちゃう。
@@ -259,9 +274,11 @@ const PROLOGUE = `
 テオ：いいじゃない。割れてるほうが、半分こしやすいよ。
 ルネ：テオってほんと、そういうとこ。
 ルネは笑って、かけらを選びはじめた。いちばん大きいのを手に取って、少し迷って、こっちを見ないまま僕のほうに差し出した。
+@cg cg_02 1
 ルネ：……これ。運んでくれたから。
 ルネ：べつに、深い意味はないから。
 ジョナス：うん。
+@cg off .8
 テオ：僕のは？
 ルネ：テオはこれ。
 テオ：小さい……。
@@ -278,18 +295,22 @@ const PROLOGUE = `
 ルネ：来なかったら、わたしがテオのお父さまを叱ってあげる。
 テオ：ルネに叱られたら、父さん泣いちゃうよ。
 そのとき、空が、ひと筋、裂けた。
-+@meteor 2.4
++@meteor 2.6
++@flash .4
 ルネ：あ！
 テオ：始まった……！
 ひとつ、またひとつ。光が、夜を斜めに引っかいていく。
-+@meteor 3
++@shower .9 3
 三人とも、しばらく何も言わなかった。
 ルネ：……お願いごと、しなきゃ。
 ルネは両手を組んで、目を閉じた。
+@cg cg_03 1.4
 目を閉じる前に、一度だけ、僕のほうを見た気がした。
 ルネ：三人で、ずっと一緒にいられますように。
 テオは、お願いごとをしなかった。
 流れ星じゃなくて、ルネの横顔を見ていた。
+@cg off 1
+@shower .5 2
 テオ：……父さんの星、どれだろう。
 テオが柵に手をかけた。もう少し、空に近いところへ。
 ルネ：テオ、あぶないわ。
@@ -315,9 +336,16 @@ const PROLOGUE = `
 テオ：大丈夫。大丈夫だから。
 次の瞬間、テオの足もとの床も、崩れた。
 +@flash .8
++@shake
+@cg cg_04 .6
++@shower 1.2 1
 空いっぱいの流れ星の中を、僕たちは、手をつないだまま落ちていった。
 +@meteor 2.4
+@wait 1
 （暗転）
+@cg off .1
++@shower 0 .1
++@sparkle 0 .1
 
 @phase 研究室|目覚め
 @bg lab
@@ -418,9 +446,14 @@ const SCENE = { resource_id: 'hh_0000000000001', orders: [
   r(64,'Descriptive','Append',0,'自分ではない誰かが、裏でルネに手を伸ばしている。'),
   r(65,'End')
 ]};
-const CHARS = { 1:{n:'カリル',c:[.86,.68,.33],s:1.12}, 2:{n:'フィルウ',c:[.36,.56,.96],s:1.04}, 3:{n:'テオ',c:[.96,.87,.6],s:.86},
-  5:{n:'リヴ',c:[.84,.8,.76],s:.98}, 6:{n:'レイフ',c:[.7,.76,.84],s:1}, 7:{n:'ルネ',c:[.97,.6,.7],s:.86} };
-const SCENES = { lab:0, observatory:1, church:2 };
+const CHARS = { 1:{n:'カリル',c:[.86,.68,.33],s:1.12,cm:178,img:'assets/chr_01_khalil.png'}, 2:{n:'フィルウ',c:[.36,.56,.96],s:1.04,cm:176,img:'assets/chr_02_filou.png'},
+  3:{n:'テオ',c:[.96,.87,.6],s:.86,cm:140,img:'assets/chr_03_theo.png',fx:{Live:'assets/chr_03_theo_live.png'}}, 5:{n:'リヴ',c:[.84,.8,.76],s:.98,cm:162,img:'assets/chr_05_liv.png'},
+  6:{n:'レイフ',c:[.7,.76,.84],s:1,cm:168,img:'assets/chr_06_leif.png'}, 7:{n:'ルネ',c:[.97,.6,.7],s:.86,cm:137,img:'assets/chr_07_rene.png'} };
+// 背景キー → 手続き背景の番号（画像が読めないときの代替）と画像
+const SCENES = { lab:0, observatory:1, church:2, slope:1 };
+const BG_IMG = { observatory:'assets/bg_observatory.jpg', slope:'assets/bg_slope.jpg' };
+const CG_IMG = { cg_01:'assets/cg_01.jpg', cg_02:'assets/cg_02.jpg', cg_03:'assets/cg_03.jpg', cg_04:'assets/cg_04.jpg' };
+const FX_IMG = { meteor:'assets/fx_meteor.png', shower:'assets/fx_shower.png', sparkle:'assets/fx_sparkle.png' };
 const POS = { Left:0, Center:1, Right:2, Near:1 };
 const SLOT_X = [520, 960, 1400];
 
@@ -429,7 +462,7 @@ const $ = id => document.getElementById(id);
 const stage = $('stage'), cv = $('gl');
 const S = { player:'ジョナス', auto:false, skip:false, modal:false, log:[],
   p:{ love_j:30, love_t:30, mourn:20, limit:100 } };
-const R = { scene:0, meteor:0, chars:[0,1,2].map(()=>({id:0,a:0,s:1,g:0,c:[1,1,1],sp:1})) };
+const R = { scene:0, bg:'', meteor:0, cg:'', cgA:0, shower:0, sparkle:0, chars:[0,1,2].map(()=>({id:0,a:0,s:1,g:0,c:[1,1,1],sp:1})) };
 const fill = t => t.replaceAll('{player}', S.player);
 const hex = c => '#' + c.map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join('');
 
@@ -509,11 +542,16 @@ OrderHandler('Talk', o=>{
 OrderHandler('Descriptive', o=>{ R.chars.forEach(c=>c.sp=1); return view.setDialog('', '', fill(o.dialog_text)); });
 OrderHandler('CharacterEntry', o=>{
   const ch = CHARS[o.speaker_id]; const c = R.chars[POS[o.position] ?? 1];
-  Object.assign(c, {id:o.speaker_id, s:ch.s, c:ch.c, g: R.scene===0 ? 1 : 0, sp:1});
+  Object.assign(c, {id:o.speaker_id, s:ch.s, c:ch.c, g: R.scene===0 && R.bg!=='slope' && R.bg!=='observatory' ? 1 : 0, sp:1, fx:o.facial_expression||'Default'});
   return tween(o.duration, k=>c.a=k);
 });
 OrderHandler('CharacterExit', o=>{ const k=slotOf(o.speaker_id); if(k<0) return; const c=R.chars[k]; return tween(o.duration, t=>c.a=1-t).then(()=>c.id=0); });
-OrderHandler('ChangeBackground', o=>{ R.scene = SCENES[o.file_path] ?? 0; });
+OrderHandler('ChangeBackground', o=>{ R.scene = SCENES[o.file_path] ?? 0; R.bg = o.file_path; });
+// スチル：file_path にCG名、'off' で消す
+OrderHandler('ShowCG', o=>{
+  if (o.file_path === 'off') return tween(o.duration, k=>R.cgA = 1-k).then(()=>R.cg='');
+  R.cg = o.file_path; return tween(o.duration, k=>R.cgA = k);
+});
 OrderHandler('FadeIn', o=>tween(o.duration, k=>$('fader').style.opacity=1-k));
 OrderHandler('FadeOut', o=>tween(o.duration, k=>$('fader').style.opacity=k));
 OrderHandler('Wait', o=>sleep(o.duration));
@@ -523,6 +561,11 @@ OrderHandler('CameraShake', ()=>{ stage.classList.remove('shake'); void stage.of
 OrderHandler('Effect', o=>{
   if (o.dialog_text==='Meteor') return tween(o.duration, k=>R.meteor=k).then(()=>R.meteor=0);
   if (o.dialog_text==='Flash') return tween(o.duration, k=>$('flash').style.opacity = (1-k)*.9);
+  const [kind, v] = o.dialog_text.split(':');           // Shower:1 / Sparkle:.6 など。duration かけて目標値へ
+  if (kind==='Shower' || kind==='Sparkle'){
+    const key = kind.toLowerCase(), from = R[key], to = Number(v);
+    return tween(o.duration, k=>R[key] = from + (to-from)*k);
+  }
 });
 OrderHandler('GameCommand', o=>GameCommandSink.exec(o.dialog_text));
 OrderHandler('Jump', o=>({jump:Number(o.dialog_text)}));
@@ -571,7 +614,7 @@ function toTitle(){
   for (const id of ['dMenu','dEnd','dLog','dName']) $(id).classList.add('hidden');
   $('choices').classList.add('hidden'); $('game').classList.remove('choosing'); view.resetDialog(); 
   S.modal=false; S.auto=S.skip=false; $('hAuto').classList.remove('on'); $('hSkip').classList.remove('on');
-  R.chars.forEach(c=>{c.a=0;c.id=0}); R.scene=0; $('fader').style.opacity=0;
+  R.chars.forEach(c=>{c.a=0;c.id=0}); R.scene=0; R.bg=''; R.cg=''; R.cgA=0; R.shower=0; R.sparkle=0; $('fader').style.opacity=0;
   $('game').classList.add('hidden'); $('title').classList.remove('hidden');
 }
 function onEnd(){ S.auto=S.skip=false; openDlg('dEnd'); }
@@ -609,6 +652,7 @@ uniform vec2 uRes;uniform float uPx,uTime,uScene,uMeteor;
 uniform vec4 uChar[3];uniform vec3 uCol[3];uniform float uSp[3];
 uniform vec4 uGlass[14];uniform float uGR[14];uniform float uGA[14];uniform int uGN;
 uniform vec4 uCP;uniform vec4 uCH;
+uniform sampler2D uBg,uCG,uT0,uT1,uT2,uFxM,uFxS,uFxK;uniform float uBgOn,uCGA,uFxOn;uniform float uTOn[3];uniform vec4 uTR[3];uniform vec2 uFx;
 float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
 float sdB(vec2 p,vec2 b,float r){vec2 q=abs(p)-b+r;return length(max(q,0.))+min(max(q.x,q.y),0.)-r;}
 float star(vec2 p,float cell,float th){vec2 g=floor(p/cell),f=fract(p/cell);float h=h21(g);vec2 o=vec2(h21(g+3.1),h21(g+9.7))*.8+.1;float d=length((f-o)*cell);return step(th,h)*exp(-d*d*.35)*(.55+.45*sin(uTime*1.7+h*60.))*(.5+h);}
@@ -639,14 +683,30 @@ vec3 church(vec2 p){vec2 uv=p/uRes;vec3 c=mix(vec3(.17,.12,.16),vec3(.045,.045,.
  c+=vec3(.95,.6,.72)*.22*exp(-max(w,0.)*.012);
  c+=vec3(1.,.82,.86)*.05*smoothstep(.0,1.,1.-abs((p.x-960.)/(260.+p.y*.5)))*step(730.,p.y);
  if(p.y>930.)c*=.45;return c;}
-vec3 chars(vec3 c,vec2 p){for(int i=0;i<3;i++){vec4 ch=uChar[i];if(ch.y<=0.)continue;float s=ch.z,gh=ch.w;
+vec3 chars(vec3 c,vec2 p){for(int i=0;i<3;i++){vec4 ch=uChar[i];if(ch.y<=0.||uTOn[i]>.5)continue;float s=ch.z,gh=ch.w;
  vec2 q=p;q.x+=sin(p.y*.045+uTime*3.)*2.5*gh;
  float d=min(length(q-vec2(ch.x,1080.-640.*s))-78.*s,sdB(q-vec2(ch.x,1080.-250.*s),vec2(135.*s,300.*s),75.*s));
  float inside=1.-smoothstep(-1.5,1.5,d);float top=1080.-730.*s;float k=clamp((p.y-top)/(730.*s),0.,1.);
  vec3 col=mix(uCol[i]*.5,uCol[i]*.12,k)+uCol[i]*exp(-abs(d)*.22)*.9;col*=mix(.45,1.,uSp[i]);
  float a=inside*ch.y*mix(1.,.6+.08*sin(uTime*2.+p.y*.02),gh)*(1.-gh*smoothstep(800.,1080.,p.y)*.8);
  c=mix(c,col,a);c+=uCol[i]*exp(-max(d,0.)*.04)*.12*gh*ch.y;}return c;}
-vec3 world(vec2 p){vec3 c=uScene<.5?lab(p):(uScene<1.5?obs(p):church(p));return chars(c,p);}
+vec4 chTex(int i,vec2 uv){if(i==0)return texture2D(uT0,uv);if(i==1)return texture2D(uT1,uv);return texture2D(uT2,uv);}
+vec2 cover(vec2 p){vec2 uv=p/uRes;uv.y=.5+(uv.y-.5)*.84375;return uv;}
+vec3 sprites(vec3 c,vec2 p){for(int i=0;i<3;i++){vec4 ch=uChar[i];if(ch.y<=0.||uTOn[i]<.5)continue;float gh=ch.w;vec4 r=uTR[i];
+ vec2 q=p;q.x+=sin(p.y*.03+uTime*2.)*3.*gh;vec2 uv=(q-r.xy)/r.zw;if(uv.x<0.||uv.x>1.||uv.y<0.||uv.y>1.)continue;
+ vec4 t=chTex(i,uv);vec3 col=t.rgb*mix(.5,1.,uSp[i]);col=mix(col,col*vec3(.82,.9,1.08)+vec3(.02,.03,.05),gh*.6);
+ float a=t.a*ch.y*mix(1.,.72+.06*sin(uTime*2.+p.y*.02),gh)*(1.-gh*smoothstep(.62,1.,uv.y)*.85);
+ c=mix(c,col,a);}return c;}
+vec3 world(vec2 p){vec3 c;
+ if(uBgOn>.5){c=texture2D(uBg,cover(p)).rgb;}else c=uScene<.5?lab(p):(uScene<1.5?obs(p):church(p));
+ if(uFxOn>.5){vec2 uv=p/uRes;
+  if(uFx.x>0.){vec3 s=texture2D(uFxS,uv*vec2(1.,.5625)+vec2(uTime*.045,-uTime*.03)).rgb;c+=s*uFx.x*(.75+.25*sin(uTime*.7));}
+  if(uFx.y>0.){vec3 k=texture2D(uFxK,uv*vec2(1.6,.9)+vec2(0.,uTime*.004)).rgb;c+=k*uFx.y*(.55+.45*sin(uTime*2.3+uv.x*20.+uv.y*13.));}
+  if(uMeteor>0.){vec2 m=mix(vec2(1500.,60.),vec2(560.,560.),uMeteor);vec2 mu=(p-m)/vec2(900.,600.)+.5;
+   if(mu.x>0.&&mu.x<1.&&mu.y>0.&&mu.y<1.)c+=texture2D(uFxM,mu).rgb*1.6*(1.-uMeteor*.5)*smoothstep(0.,.12,uMeteor);}}
+ c=chars(c,p);c=sprites(c,p);
+ if(uCGA>0.)c=mix(c,texture2D(uCG,cover(p)).rgb,uCGA);
+ return c;}
 void main(){vec2 p=vec2(gl_FragCoord.x/uPx,uRes.y-gl_FragCoord.y/uPx);vec3 c=world(p);float sh=0.;
  for(int i=0;i<14;i++){if(i>=uGN)break;float a=uGA[i];if(a<=0.)continue;vec4 g=uGlass[i];vec2 hb=g.zw*.5,hc=g.xy+hb;float r=min(uGR[i],min(hb.x,hb.y));
   float d=sdB(p-hc,hb,r);if(d>0.){sh=max(sh,a*.32*exp(-d/16.));continue;}
@@ -691,9 +751,31 @@ function initGL(){
   gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,3,-1,-1,3]), gl.STATIC_DRAW);
   gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
-  for (const n of ['uRes','uPx','uTime','uScene','uMeteor','uChar','uCol','uSp','uGlass','uGR','uGA','uGN','uCP','uCH']) U[n] = gl.getUniformLocation(pr, n);
+  for (const n of ['uRes','uPx','uTime','uScene','uMeteor','uChar','uCol','uSp','uGlass','uGR','uGA','uGN','uCP','uCH',
+    'uBgOn','uCGA','uFxOn','uTOn','uTR','uFx']) U[n] = gl.getUniformLocation(pr, n);
+  ['uBg','uCG','uT0','uT1','uT2','uFxM','uFxS','uFxK'].forEach((n,i)=>gl.uniform1i(gl.getUniformLocation(pr,n), i));
   return true;
 }
+/* 画像テクスチャ。読み込めなかったものは手続き描画にフォールバック */
+const TEX = {};
+function tex(url, repeat){
+  if (!url) return null;
+  if (TEX[url]) return TEX[url];
+  const t = { gl: gl.createTexture(), ready:false, w:1, h:1 };
+  const img = new Image();
+  img.onload = ()=>{
+    gl.bindTexture(gl.TEXTURE_2D, t.gl);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    const wrap = repeat ? gl.REPEAT : gl.CLAMP_TO_EDGE;
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    t.w = img.width; t.h = img.height; t.ready = true;
+  };
+  img.onerror = ()=>console.warn('画像を読み込めません', url);
+  img.src = url; TEX[url] = t; return t;
+}
+function bindTex(unit, t){ gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D, t && t.ready ? t.gl : null); return !!(t && t.ready); }
+const tOn = new Float32Array(3), tR = new Float32Array(12);
 const gBuf = new Float32Array(56), gR = new Float32Array(14), gA = new Float32Array(14);
 const cP = new Float32Array(4), cH = new Float32Array(4);
 const cBuf = new Float32Array(12), colBuf = new Float32Array(9), spBuf = new Float32Array(3);
@@ -717,6 +799,20 @@ function frame(t){
   gl.uniform4fv(U.uChar,cBuf); gl.uniform3fv(U.uCol,colBuf); gl.uniform1fv(U.uSp,spBuf);
   gl.uniform4fv(U.uGlass,gBuf); gl.uniform1fv(U.uGR,gR); gl.uniform1fv(U.uGA,gA); gl.uniform1i(U.uGN,n);
   gl.uniform4fv(U.uCP,cP); gl.uniform4fv(U.uCH,cH);
+  const inGame = !$('game').classList.contains('hidden');
+  gl.uniform1f(U.uBgOn, bindTex(0, inGame ? tex(BG_IMG[R.bg]) : null) ? 1 : 0);
+  gl.uniform1f(U.uCGA, bindTex(1, tex(CG_IMG[R.cg])) ? R.cgA : 0);
+  R.chars.forEach((c,i)=>{
+    const ch = CHARS[c.id];
+    let t = null;
+    if (ch && c.a>0){ const v = ch.fx && ch.fx[c.fx] ? tex(ch.fx[c.fx]) : null; t = v && v.ready ? v : tex(ch.img); }
+    const ok = bindTex(2+i, t);
+    tOn[i] = ok ? 1 : 0;
+    if (ok){ const h = ch.cm*5.5, w = h*t.w/t.h; tR.set([SLOT_X[i]-w/2, 1080+70-h, w, h], i*4); }
+  });
+  gl.uniform1fv(U.uTOn, tOn); gl.uniform4fv(U.uTR, tR);
+  const fm = bindTex(5, tex(FX_IMG.meteor)), fs = bindTex(6, tex(FX_IMG.shower, true)), fk = bindTex(7, tex(FX_IMG.sparkle, true));
+  gl.uniform1f(U.uFxOn, fm||fs||fk ? 1 : 0); gl.uniform2f(U.uFx, fs ? R.shower : 0, fk ? R.sparkle : 0);
   gl.drawArrays(gl.TRIANGLES,0,3);
   requestAnimationFrame(frame);
 }
