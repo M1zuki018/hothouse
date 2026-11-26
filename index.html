@@ -49,7 +49,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .hbtn{padding:0 12px;font:600 22px/1 "Cormorant Garamond",serif;letter-spacing:.13em}
 .hbtn:hover,.hbtn.on,#hudToggle{color:var(--gold)}
 #hudToggle{font-size:26px}
-/* 没入：HUDは右上の隅に触れたときだけ。普段は画面に文字以外を出さない */
+/* 没入：HUDは右下の隅に触れたときだけ。普段は画面に文字以外を出さない */
 #hud{opacity:0;transition:opacity .45s}
 #hud.awake,#hud:focus-within{opacity:1}
 /* 星のHUD：隅の星が集まって文字になり、離れるとほどけて夜空に還る */
@@ -75,8 +75,20 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .caption{position:absolute;left:50%;bottom:64px;translate:-50% 0;width:1220px;text-align:center;text-shadow:0 2px 12px #000,0 0 24px #000}
 #dialog.still .caption{bottom:54px;width:1400px}
 #dialog.monologue .caption{top:50%;bottom:auto;translate:-50% -50%;width:1080px}
-#dialog .nm{position:absolute;bottom:100%;left:0;right:0;margin-bottom:10px;font-size:27px;font-weight:600;letter-spacing:.24em}
-#dialog .nm:empty,.still .nm,.monologue .nm{display:none}
+#dialog .nm{position:absolute;bottom:100%;left:0;right:0;margin-bottom:14px;font-size:24px;font-weight:600;letter-spacing:.32em;padding-left:.32em;display:flex;align-items:center;justify-content:center;gap:18px}
+/* 名前：左右に細い金の線が伸びる */
+#dialog .nm::before,#dialog .nm::after{content:"";width:46px;height:1px;background:linear-gradient(90deg,transparent,currentColor);opacity:.7;transform-origin:right;animation:nmLine .6s cubic-bezier(.2,.8,.2,1) both}
+#dialog .nm::after{background:linear-gradient(90deg,currentColor,transparent);transform-origin:left}
+#dialog:has(.tx.long) .nm{justify-content:flex-start;padding-left:0}
+#dialog:has(.tx.long) .nm::before{display:none}
+@keyframes nmLine{from{transform:scaleX(0);opacity:0}}
+#dialog .nm.enter{animation:nmIn .5s ease-out both}
+@keyframes nmIn{from{opacity:0;letter-spacing:.6em;filter:blur(4px)}}
+/* 本文：一文字ずつ、にじむように浮かび上がる。最初は金に光り、すぐ白に落ち着く */
+#dialog .tx .ch{display:inline;animation:chIn .62s cubic-bezier(.25,.7,.25,1) both;animation-delay:var(--d)}
+@keyframes chIn{0%{opacity:0;filter:blur(7px);color:#f6e2ad;text-shadow:0 0 22px rgba(217,174,85,.9),0 2px 12px #000}55%{opacity:1;filter:blur(0);color:#fbf1d8}100%{opacity:1;filter:none}}
+#dialog .tx.done .ch{animation:none}
+#dialog .nm:empty,.monologue .nm{display:none}
 #dialog .tx{min-height:1.65em;font-size:42px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;text-wrap:pretty}
 #dialog.still .tx{font-size:36px}
 #dialog .tx.long{text-align:left}
@@ -557,27 +569,34 @@ const view = {
     nm.textContent = name;
     nm.style.color = color;
     const tx = d.querySelector('.tx');
-    tx.textContent = text;
     tx.classList.toggle('long', text.length > 52 || text.includes('\n'));
+    // 話者が変わったときだけ名前を演出し直す
+    if (name !== this.lastName){ nm.classList.remove('enter'); void nm.offsetWidth; if (name) nm.classList.add('enter'); }
+    this.lastName = name;
     this.show(d, !!text);
     S.log.push({n:name, t:text, c:color});
+    const quick = S.skip || matchMedia('(prefers-reduced-motion: reduce)').matches;
+    tx.classList.toggle('done', quick);
+    tx.textContent = '';
     if (!text) return;
-    if (S.skip || matchMedia('(prefers-reduced-motion: reduce)').matches){
-      d.classList.add('ready');
-      return;
-    }
+    const chars = [...new Intl.Segmenter('ja', {granularity:'grapheme'}).segment(text)].map(g=>g.segment);
+    const step = Math.min(26, 1100 / chars.length);   // 長い文でも1.1秒ほどで出しきる
+    const frag = document.createDocumentFragment();
+    chars.forEach((c, i)=>{
+      if (c === '\n'){ frag.append(document.createElement('br')); return; }
+      const sp = document.createElement('span'); sp.className = 'ch'; sp.textContent = c; sp.style.setProperty('--d', (i*step|0)+'ms'); frag.append(sp);
+    });
+    tx.append(frag);
+    if (quick){ d.classList.add('ready'); return; }
     return new Promise(resolve=>{
-      const animation = d.querySelector('.caption').animate([{opacity:0},{opacity:1}], {
-        duration:220, easing:'ease-out'
-      });
+      const t = setTimeout(()=>this.finishReveal?.(), chars.length*step + 620);
       this.finishReveal = () => {
-        animation.onfinish = null;
-        animation.cancel();
+        clearTimeout(t);
+        tx.classList.add('done');
         this.finishReveal = null;
         d.classList.add('ready');
         resolve();
       };
-      animation.onfinish = this.finishReveal;
     });
   },
   resetDialog(){
@@ -585,6 +604,7 @@ const view = {
     const d = $('dialog');
     this.show(d, false);
     d.classList.remove('still','monologue','ready');
+    this.lastName = null;
     d.querySelector('.tx').textContent = '';
     d.querySelector('.nm').textContent = '';
   },
