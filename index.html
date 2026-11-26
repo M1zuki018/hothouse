@@ -104,9 +104,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .ink.on:hover::before{opacity:1}
 .s0{left:90px;top:150px;text-align:left}.s1{right:90px;top:150px;text-align:right}
 .s2{left:90px;bottom:110px;text-align:left}.s3{right:90px;bottom:110px;text-align:right}
-.choosing #dialog::before{inset:0;background:radial-gradient(ellipse at center,rgba(8,7,12,.83),transparent 64%)}
-.choosing #dialog .caption{top:50%;bottom:auto;translate:-50% -50%;width:770px}
+.choosing:not(.keep) #dialog::before{inset:0;background:radial-gradient(ellipse at center,rgba(8,7,12,.83),transparent 64%)}
+.choosing:not(.keep) #dialog .caption{top:50%;bottom:auto;translate:-50% -50%;width:770px}
 .choosing #phase,.choosing #hud{visibility:hidden}
+.choosing:not(.keep) #dialog.on{transition:opacity .45s ease-out}
 .nogl .ink{background:rgba(5,5,8,.85);border-radius:60px;opacity:0;transition:opacity .8s,color .7s .3s}.nogl .ink.on{opacity:1}
 /* dialogs */
 .dlg{position:absolute;inset:0;background:rgba(0,0,0,.35)}
@@ -609,13 +610,20 @@ const view = {
     d.querySelector('.nm').textContent = '';
   },
   showChoices(items, head){
-    this.resetDialog();
     const d = $('dialog');
     const nm = d.querySelector('.nm'), prompt = d.querySelector('.tx');
-    const last = S.log.at(-1);
-    if (!head.join('') && last){ nm.textContent = last.n; nm.style.color = last.c || '#d9ae55'; prompt.textContent = last.t; }  // 見出しがなければ直前の一言を残す
-    else { nm.textContent = [head[0],head[1]].filter(Boolean).join('　'); nm.style.color = '#d9ae55'; prompt.textContent = fill(head[2]||''); }
-    prompt.classList.remove('long');
+    // 見出しがなければ、直前の一言をそのまま画面に残す（消さない・動かさない）
+    const keep = !head.join('') && S.log.length > 0;
+    this.finishReveal?.();
+    d.classList.remove('ready');
+    if (!keep){
+      // 見出しつき：いったん瞬時に消してから中央に入れ替え、ゆっくり出す（古い文が一瞬映らないように）
+      d.style.transition = 'none'; this.show(d, false); void d.offsetWidth; d.style.transition = '';
+      d.classList.remove('still','monologue');
+      nm.textContent = [head[0],head[1]].filter(Boolean).join('　'); nm.style.color = '#d9ae55'; nm.classList.remove('enter');
+      prompt.textContent = fill(head[2]||''); prompt.classList.remove('long');
+    }
+    $('game').classList.toggle('keep', keep);
     clearTimeout(this.phaseTimer);
     this.show($('phase'), false);
     const box = $('choices'); box.innerHTML = '';
@@ -627,12 +635,12 @@ const view = {
         const b = document.createElement('button'); b.className = 'cbtn ink s' + slots[k]; b.textContent = fill(it.label);
         b.dataset.slot = slots[k]; b.dataset.t0 = now + k*220;
         setTimeout(()=>b.classList.add('on'), k*220 + 700);
-        b.onclick = e => { e.stopPropagation(); clearTimeout(this.choicePromptTimer); box.classList.add('hidden'); $('game').classList.remove('choosing'); S.modal=false; this.resetDialog(); res(it.id); };
+        b.onclick = e => { e.stopPropagation(); clearTimeout(this.choicePromptTimer); box.classList.add('hidden'); $('game').classList.remove('choosing','keep'); S.modal=false; this.resetDialog(); res(it.id); };
         box.append(b);
       });
       box.classList.remove('hidden'); S.modal = true;
-      this.choicePromptTimer = setTimeout(()=>{
-        if (!box.classList.contains('hidden')) this.show(d, true);
+      if (!keep) this.choicePromptTimer = setTimeout(()=>{
+        if (!box.classList.contains('hidden') && prompt.textContent) this.show(d, true);
       }, 360);
     });
   },
@@ -852,7 +860,7 @@ function closeDlg(id){ $(id).classList.add('hidden'); S.modal = !$('choices').cl
 function toTitle(){
   if (player) player.alive = false; advance = null; clearTimeout(autoT);
   for (const id of ['dMenu','dEnd','dLog','dName']) $(id).classList.add('hidden');
-  $('choices').classList.add('hidden'); $('game').classList.remove('choosing'); view.resetDialog(); 
+  $('choices').classList.add('hidden'); $('game').classList.remove('choosing','keep'); view.resetDialog(); 
   S.modal=false; S.auto=S.skip=false;
   setHud(false);
   clearTimeout(view.phaseTimer);
