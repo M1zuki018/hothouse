@@ -184,6 +184,7 @@ const J = 'Join';
    @cg 名前 秒 / @cg off 秒  @shower 強さ 秒  @sparkle 強さ 秒  @monologue 本文
    ＞ラベル（連続行で複数）。直後の ｜行 はその選択肢だけの分岐、分岐後は次の行に合流
    ＞「台詞」のようにラベルを「」で囲むと、選んだあと主人公の台詞として表示
+   「台詞」だけの行（または ジョナス：台詞）は、選択肢1つの選択になる。主人公のセリフはすべてプレイヤーが選んで言う
    行頭 + は直前と同時実行（Join） */
 const NAME2ID = { カリル:1, フィルウ:2, テオ:3, ジョナス:0, リヴ:5, レイフ:6, ルネ:7 };
 function fromScript(src, id){
@@ -237,6 +238,9 @@ function fromScript(src, id){
       for (const j of jumps) out[j].dialog_text = String(id);
       continue;
     }
+    // 主人公のセリフ（「」だけの行、または ジョナス：）は、選択肢が1つの選択として出す。選ぶとセリフとして表示
+    const pm = L.match(/^「.*」$/) ? L : (L.match(/^ジョナス：(.+)$/) ? '「'+L.slice(5)+'」' : '');
+    if (pm){ add(false,'Choice',0,pm+'-'+(id+1),head); head = ''; add(false,'Descriptive',0,pm); continue; }
     if (/^（.*）$/.test(L)){
       if (L === '（暗転）'){ add(false,'FadeOut',0,'','','','Center',1.6); clear(true,1.6); add(true,'ResetTexts'); add(false,'Wait',0,'','','','Center',1); }
       continue; // それ以外の（メモ）は無視
@@ -421,9 +425,9 @@ const PROLOGUE = `
 カリル：ああ、目が覚めたね。
 金色の髪の男の人が、僕を覗き込んでいた。長い髪を、黒いリボンでひとつに結んでいる。
 カリル：ようこそ、{player}君。ここは研究室だ。
-ジョナス：……研究室。
+「……研究室。」
 声が、うまく出なかった。喉の奥に、まだ夜の空気が残っている気がした。
-ジョナス：ルネは。テオは。
+「ルネは。テオは。」
 カリル：落ちたんだよ。
 カリル：君は、死んだ。
 その人は、天気の話でもするみたいに言った。
@@ -479,7 +483,7 @@ const PROLOGUE = `
 誰かが、手を引きに来るのを待っているみたいに。
 ルネ：……二人とも、遅刻よ。
 ルネ：わたしを置いていくなんて、ゆるさないんだから。
-ジョナス：ルネ。
+「ルネ。」
 呼んでも、届かなかった。硝子の向こうの音だけが、こっちに流れてくる。
 カリル：あの子が、ルネ・フルーリーだね。
 カリル：君たちを、いちばん大切に想っている子だ。
@@ -556,7 +560,7 @@ const view = {
     tx.textContent = text;
     tx.classList.toggle('long', text.length > 52 || text.includes('\n'));
     this.show(d, !!text);
-    S.log.push({n:name, t:text});
+    S.log.push({n:name, t:text, c:color});
     if (!text) return;
     if (S.skip || matchMedia('(prefers-reduced-motion: reduce)').matches){
       d.classList.add('ready');
@@ -587,9 +591,10 @@ const view = {
   showChoices(items, head){
     this.resetDialog();
     const d = $('dialog');
-    const nm = d.querySelector('.nm'); nm.textContent = [head[0],head[1]].filter(Boolean).join('　'); nm.style.color = '#d9ae55';
-    const prompt = d.querySelector('.tx');
-    prompt.textContent = fill(head[2]||'');
+    const nm = d.querySelector('.nm'), prompt = d.querySelector('.tx');
+    const last = S.log.at(-1);
+    if (!head.join('') && last){ nm.textContent = last.n; nm.style.color = last.c || '#d9ae55'; prompt.textContent = last.t; }  // 見出しがなければ直前の一言を残す
+    else { nm.textContent = [head[0],head[1]].filter(Boolean).join('　'); nm.style.color = '#d9ae55'; prompt.textContent = fill(head[2]||''); }
     prompt.classList.remove('long');
     clearTimeout(this.phaseTimer);
     this.show($('phase'), false);
