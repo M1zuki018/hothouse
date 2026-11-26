@@ -52,6 +52,14 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 /* 没入：HUDは右上の隅に触れたときだけ。普段は画面に文字以外を出さない */
 #hud{opacity:0;transition:opacity .45s}
 #hud.awake,#hud:focus-within{opacity:1}
+/* 星のHUD：隅の星が集まって文字になり、離れるとほどけて夜空に還る */
+#hudSky{position:absolute;right:0;top:0;width:820px;height:230px;pointer-events:none}
+#hud.awake .hbtn{animation:hudIn .55s .45s both}
+@keyframes hudIn{from{opacity:0;filter:blur(3px)}to{opacity:1;filter:none}}
+@media (prefers-reduced-motion:reduce){#hud.awake .hbtn{animation-delay:0s}}
+#hud #hudToggle{opacity:0;transition:opacity .3s}
+#hud.awake #hudToggle,#hud:focus-within #hudToggle{opacity:1}
+.choosing #hudSky,.silent #hudSky,#game.hidetext #hudSky{visibility:hidden}
 #modeMark{position:absolute;right:64px;bottom:40px;font:600 20px/1 "Cormorant Garamond",serif;letter-spacing:.3em;color:var(--gold);text-shadow:0 0 12px #000;opacity:0;transition:opacity .4s;pointer-events:none}
 #modeMark.on{opacity:.55;animation:breathe 2.4s ease-in-out infinite}
 @keyframes breathe{50%{opacity:.25}}
@@ -119,6 +127,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 
   <div id="game" class="layer hidden">
     <div id="phase" class="fadeable"><b></b><span></span></div>
+    <canvas id="hudSky" aria-hidden="true"></canvas>
     <div id="hud">
       <div id="hudItems" hidden>
         <button class="hbtn" id="hLog">LOG</button>
@@ -709,9 +718,76 @@ class StoryPlayer{
 /* ============ 5. 画面遷移・入力 ============ */
 let player = null;
 let hudTimer = 0;
+/* ---- 星のHUD ---- */
+const sky = (()=>{
+  const cv = $('hudSky'), W = 820, H = 230, ctx = cv.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  let k = 1, P = [], targets = [], raf = 0;
+  // 隅にいつも瞬いている星（ここに何かある、という手がかり）
+  const idle = Array.from({length:9}, (_,i)=>({ x: W-470+i*52+Math.sin(i*7.1)*18, y: 64+Math.cos(i*3.3)*22, ph: i*1.7, r: .9+((i*37)%5)/6 }));
+  function resize(){ k = Math.min(2, Math.max(1, scale*(devicePixelRatio||1))); cv.width = W*k; cv.height = H*k; }
+  function sample(){
+    const sr = stage.getBoundingClientRect(), pts = [];
+    const off = document.createElement('canvas').getContext('2d');
+    for (const b of document.querySelectorAll('#hudItems .hbtn')){
+      const r = b.getBoundingClientRect(), cs = getComputedStyle(b);
+      const w = Math.ceil(r.width/scale), h = Math.ceil(r.height/scale);
+      const x0 = (r.left-sr.left)/scale - (1920-W), y0 = (r.top-sr.top)/scale;
+      off.canvas.width = w; off.canvas.height = h; off.clearRect(0,0,w,h);
+      off.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; off.letterSpacing = cs.letterSpacing;
+      off.textAlign = 'center'; off.textBaseline = 'middle'; off.fillStyle = '#fff'; off.fillText(b.textContent, w/2, h/2+1);
+      const d = off.getImageData(0,0,w,h).data, cand = [];
+      for (let y=0; y<h; y+=2) for (let x=0; x<w; x+=2) if (d[(y*w+x)*4+3] > 140) cand.push([x0+x, y0+y]);
+      for (let i=cand.length-1; i>0; i--){ const j = Math.random()*(i+1)|0; [cand[i],cand[j]] = [cand[j],cand[i]]; }
+      pts.push(...cand.slice(0, 46));
+    }
+    return pts;
+  }
+  const ease = t => 1-Math.pow(1-t,3);
+  function wake(){
+    if (reduce.matches) return;
+    targets = sample(); const now = performance.now();
+    P = targets.map(([tx,ty], i)=>{ const s = idle[i % idle.length], a = Math.random()*6.28, d = 40+Math.random()*140;
+      return { sx: s.x+Math.cos(a)*d, sy: s.y+Math.sin(a)*d*.5, tx, ty, t0: now+Math.random()*180, dur: 520+Math.random()*260, mode:'in' }; });
+    loop();
+  }
+  function sleep(){
+    if (reduce.matches || !targets.length) return;
+    const now = performance.now();
+    P = targets.map(([x,y])=>{ const a = -1.9+Math.random()*1.2, d = 30+Math.random()*90;
+      return { sx:x, sy:y, tx: x+Math.cos(a)*d, ty: y+Math.sin(a)*d, t0: now+Math.random()*120, dur: 900+Math.random()*500, mode:'out' }; });
+    loop();
+  }
+  function star(x, y, r, a){
+    const g = ctx.createRadialGradient(x,y,0,x,y,r*4);
+    g.addColorStop(0, `rgba(255,246,222,${a})`); g.addColorStop(.25, `rgba(232,196,120,${a*.45})`); g.addColorStop(1, 'rgba(217,174,85,0)');
+    ctx.fillStyle = g; ctx.fillRect(x-r*4, y-r*4, r*8, r*8);
+  }
+  function frame(now){
+    ctx.setTransform(k,0,0,k,0,0); ctx.clearRect(0,0,W,H); ctx.globalCompositeOperation = 'lighter';
+    const awake = $('hud').classList.contains('awake');
+    for (const s of idle) star(s.x, s.y, s.r*1.6, (awake ? .05 : .3) + .16*Math.sin(now/700+s.ph));
+    let live = false;
+    for (const p of P){
+      const t = Math.max(0, Math.min(1, (now-p.t0)/p.dur)), e = ease(t);
+      const x = p.sx+(p.tx-p.sx)*e, y = p.sy+(p.ty-p.sy)*e;
+      const a = p.mode==='in' ? (t<1 ? .25+.65*t : Math.max(0, .9-(now-p.t0-p.dur)/500)) : .8*(1-t);
+      if (a > .01){ live = true; star(x, y, p.mode==='in' ? 1.3 : 1.1, a); }
+    }
+    if (!live) P = [];
+    raf = requestAnimationFrame(frame);
+  }
+  function loop(){ if (!raf) raf = requestAnimationFrame(frame); }
+  addEventListener('resize', ()=>requestAnimationFrame(resize));
+  return { wake, sleep, start(){ resize(); loop(); } };
+})();
 function setHud(open){
+  const was = $('hud').classList.contains('awake');
+  if (open === was){ if (open){ clearTimeout(hudTimer); hudTimer = setTimeout(()=>{ if (!$('hud').matches(':hover,:focus-within')) setHud(false); }, 2200); } return; }
+  if (!open) sky.sleep();
   $('hud').classList.toggle('awake', open);
   $('hudItems').hidden = !open;
+  if (open) sky.wake();
   $('hudToggle').setAttribute('aria-expanded', String(open));
   clearTimeout(hudTimer);
   if (open) hudTimer = setTimeout(()=>{
@@ -783,6 +859,7 @@ stage.addEventListener('click', e=>{
   if (S.modal || !inGame() || e.target.closest('button')) return;
   if (longPressed){ longPressed = false; return; }
   if (textHidden()){ setHideText(false); return; }        // 文字を隠しているときのクリックは「戻す」だけ
+  { const [x, y] = toStage(e); if (x > 1920-460 && y < 200 && !$('hud').classList.contains('awake')){ setHud(true); return; } } // 隅のタップでHUD
   if (S.auto || S.skip){ setAuto(false); setSkip(false); }  // 手で送ったら自動は止める
   fireAdvance();
 });
@@ -1008,6 +1085,7 @@ function frame(t){
 }
 addEventListener('resize', fit);
 fit();
+sky.start();
 let ok = false;
 try { ok = initGL(); } catch (err) { console.warn('WebGL初期化に失敗。CSSの硝子で表示します', err); }
 if (ok){ fit(); requestAnimationFrame(frame); } else document.body.classList.add('nogl');
