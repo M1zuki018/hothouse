@@ -49,6 +49,14 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .hbtn{padding:0 14px;font:600 24px/1 "Cormorant Garamond",serif;letter-spacing:.13em}
 .hbtn:hover,.hbtn.on,#hudToggle{color:var(--gold)}
 #hudToggle{font-size:31px}
+/* 没入：HUDは右上の隅に触れたときだけ。普段は画面に文字以外を出さない */
+#hud{opacity:0;transition:opacity .45s}
+#hud.awake,#hud:focus-within{opacity:1}
+#modeMark{position:absolute;right:64px;bottom:40px;font:600 20px/1 "Cormorant Garamond",serif;letter-spacing:.3em;color:var(--gold);text-shadow:0 0 12px #000;opacity:0;transition:opacity .4s;pointer-events:none}
+#modeMark.on{opacity:.55;animation:breathe 2.4s ease-in-out infinite}
+@keyframes breathe{50%{opacity:.25}}
+#dialog.ready .nx{animation:breathe 2s ease-in-out infinite}
+#game.hidetext #dialog,#game.hidetext #phase,#game.hidetext #hud,#game.hidetext #modeMark{visibility:hidden}
 #dialog{inset:0;transition:opacity .2s}
 #dialog,#dialog.on{pointer-events:none}
 #dialog::before{content:"";position:absolute;inset:59% 0 0;background:linear-gradient(transparent,rgba(8,7,12,.88))}
@@ -106,7 +114,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
       <button class="gbtn glass" id="bStart">はじめから</button>
       <button class="gbtn glass" id="bConf" aria-disabled="true">設定</button>
     </div>
-    <div class="note">モック版　素材はすべて仮　クリック／Enterで読み進め</div>
+    <div class="note">モック版　素材はすべて仮　クリック／Enter：送る　ホイール上：ログ　右クリック／H：文字を隠す　Ctrl：スキップ　A：オート</div>
   </div>
 
   <div id="game" class="layer hidden">
@@ -124,6 +132,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
     <div id="dialog" class="fadeable">
       <div class="caption"><div class="nm"></div><div class="tx"></div><span class="nx" aria-hidden="true">✦</span></div>
     </div>
+    <div id="modeMark" aria-live="polite"></div>
   </div>
 
   <div id="fader"></div>
@@ -701,6 +710,7 @@ class StoryPlayer{
 let player = null;
 let hudTimer = 0;
 function setHud(open){
+  $('hud').classList.toggle('awake', open);
   $('hudItems').hidden = !open;
   $('hudToggle').setAttribute('aria-expanded', String(open));
   clearTimeout(hudTimer);
@@ -711,9 +721,28 @@ function setHud(open){
 $('hudToggle').onclick = ()=>setHud($('hudItems').hidden);
 $('hud').addEventListener('pointerleave', ()=>{ if (!$('hud').matches(':focus-within')) setHud(false); });
 $('hud').addEventListener('focusout', e=>{ if (!$('hud').contains(e.relatedTarget)) setHud(false); });
+const toStage = e => { const b = stage.getBoundingClientRect(); return [(e.clientX-b.left)/scale, (e.clientY-b.top)/scale]; };
 stage.addEventListener('pointermove', e=>{
-  if (!S.modal && !$('game').matches('.hidden,.silent') && e.pointerType === 'mouse' && !e.target.closest('#hud')) setHud(true);
+  if (S.modal || $('game').matches('.hidden,.silent,.hidetext') || e.pointerType !== 'mouse') return;
+  const [x, y] = toStage(e);
+  if (x > 1920-460 && y < 200) setHud(true);   // 右上の隅に寄ったときだけ出す
 });
+/* 自動送り・スキップ・文字隠しの状態 */
+let skipHeld = false;
+function markMode(){
+  const m = $('modeMark'), t = (S.skip || skipHeld) ? 'SKIP »' : S.auto ? 'AUTO ›' : '';
+  if (t) m.textContent = t; m.classList.toggle('on', !!t);
+  for (const [id, v] of [['hAuto', S.auto], ['hSkip', S.skip]]){ $(id).classList.toggle('on', v); $(id).setAttribute('aria-pressed', String(v)); }
+}
+function setAuto(v){ S.auto = v; markMode(); if (v && advance && !view.finishReveal){ clearTimeout(autoT); autoT = setTimeout(fireAdvance,1500); } }
+function setSkip(v){ S.skip = v; markMode(); if (v) fireAdvance(); }
+function setHideText(v){ $('game').classList.toggle('hidetext', v); if (v) setHud(false); }
+const textHidden = () => $('game').classList.contains('hidetext');
+function openLog(){
+  const list=$('logList'); list.innerHTML='';
+  for (const l of S.log){ const p=document.createElement('p'); if(l.n){ const b=document.createElement('b'); b.textContent=l.n; p.append(b); } p.append(document.createTextNode(l.t)); list.append(p); }
+  openDlg('dLog'); list.scrollTop = list.scrollHeight;
+}
 function openDlg(id){ $(id).classList.remove('hidden'); S.modal = true; }
 function closeDlg(id){ $(id).classList.add('hidden'); S.modal = !$('choices').classList.contains('hidden'); }
 function toTitle(){
@@ -725,14 +754,11 @@ function toTitle(){
   clearTimeout(view.phaseTimer);
   clearTimeout(view.choicePromptTimer);
   view.show($('phase'), false);
-  for (const id of ['hAuto','hSkip']){
-    $(id).classList.remove('on');
-    $(id).setAttribute('aria-pressed', 'false');
-  }
+  skipHeld = false; markMode(); setHideText(false);
   R.chars.forEach(c=>{c.a=0;c.id=0}); R.scene=0; R.bg=''; R.cg=''; R.cgA=0; R.shower=0; R.sparkle=0; $('fader').style.opacity=0;
   $('game').classList.remove('silent'); $('game').classList.add('hidden'); $('title').classList.remove('hidden');
 }
-function onEnd(){ S.auto=S.skip=false; openDlg('dEnd'); }
+function onEnd(){ S.auto=S.skip=false; skipHeld=false; markMode(); openDlg('dEnd'); }
 
 $('bStart').onclick = ()=>{ openDlg('dName'); $('nameIn').focus(); };
 $('bConf').onclick = ()=>view.toast('設定はモックでは未実装');
@@ -745,21 +771,46 @@ $('nOk').onclick = ()=>{
   player = new StoryPlayer(SCENE); player.run();
 };
 $('nameIn').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.stopPropagation(); $('nOk').click(); } });
-$('hLog').onclick = e=>{ e.stopPropagation();
-  const list=$('logList'); list.innerHTML='';
-  for (const l of S.log){ const p=document.createElement('p'); if(l.n){ const b=document.createElement('b'); b.textContent=l.n; p.append(b); } p.append(document.createTextNode(l.t)); list.append(p); }
-  openDlg('dLog'); list.scrollTop = list.scrollHeight; };
-$('hAuto').onclick = e=>{ e.stopPropagation(); S.auto=!S.auto; e.currentTarget.classList.toggle('on',S.auto); e.currentTarget.setAttribute('aria-pressed', String(S.auto)); if(S.auto && advance && !view.finishReveal) autoT=setTimeout(fireAdvance,1500); };
-$('hSkip').onclick = e=>{ e.stopPropagation(); S.skip=!S.skip; e.currentTarget.classList.toggle('on',S.skip); e.currentTarget.setAttribute('aria-pressed', String(S.skip)); if(S.skip) fireAdvance(); };
+$('hLog').onclick = e=>{ e.stopPropagation(); openLog(); };
+$('hAuto').onclick = e=>{ e.stopPropagation(); setAuto(!S.auto); };
+$('hSkip').onclick = e=>{ e.stopPropagation(); setSkip(!S.skip); };
 $('hMenu').onclick = e=>{ e.stopPropagation(); openDlg('dMenu'); };
 $('mTitle').onclick = toTitle; $('eTitle').onclick = toTitle;
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); closeDlg(b.dataset.close); });
-stage.addEventListener('click', e=>{ if (S.modal || $('game').classList.contains('hidden') || e.target.closest('button')) return; fireAdvance(); });
-addEventListener('keydown', e=>{
-  if ($('game').classList.contains('hidden')) return;
-  if (e.key==='Escape'){ for(const id of ['dLog','dMenu']) if(!$(id).classList.contains('hidden')){ closeDlg(id); return; } if(!S.modal) openDlg('dMenu'); return; }
-  if ((e.key==='Enter'||e.key===' ') && !S.modal && !e.target.closest('button,input')){ e.preventDefault(); fireAdvance(); }
+const inGame = () => !$('game').classList.contains('hidden');
+let pressT = 0, longPressed = false;
+stage.addEventListener('click', e=>{
+  if (S.modal || !inGame() || e.target.closest('button')) return;
+  if (longPressed){ longPressed = false; return; }
+  if (textHidden()){ setHideText(false); return; }        // 文字を隠しているときのクリックは「戻す」だけ
+  if (S.auto || S.skip){ setAuto(false); setSkip(false); }  // 手で送ったら自動は止める
+  fireAdvance();
 });
+// 右クリック／長押し：文字を隠して絵だけを見る
+stage.addEventListener('contextmenu', e=>{ if (!inGame() || S.modal) return; e.preventDefault(); setHideText(!textHidden()); });
+stage.addEventListener('pointerdown', e=>{ if (e.pointerType !== 'touch' || !inGame() || S.modal) return; pressT = setTimeout(()=>{ longPressed = true; setHideText(!textHidden()); }, 550); });
+for (const ev of ['pointerup','pointercancel','pointermove']) stage.addEventListener(ev, e=>{ if (e.pointerType === 'touch' && (ev !== 'pointermove' || Math.hypot(e.movementX, e.movementY) > 6)) clearTimeout(pressT); });
+// ホイール上：ログ。ログの一番下でホイール下：閉じる。ホイール下：読み進め
+stage.addEventListener('wheel', e=>{
+  if (!inGame()) return;
+  const logOpen = !$('dLog').classList.contains('hidden'), list = $('logList');
+  if (logOpen){ if (e.deltaY > 0 && list.scrollTop + list.clientHeight >= list.scrollHeight - 2) closeDlg('dLog'); return; }
+  if (S.modal || textHidden()) return;
+  if (e.deltaY < 0) openLog(); else fireAdvance();
+}, {passive:true});
+addEventListener('keydown', e=>{
+  if (!inGame() || e.target.closest('input')) return;
+  if (e.key==='Escape'){ if (textHidden()){ setHideText(false); return; } for(const id of ['dLog','dMenu']) if(!$(id).classList.contains('hidden')){ closeDlg(id); return; } if(!S.modal) openDlg('dMenu'); return; }
+  if (S.modal) return;
+  if (e.key==='Control' && !e.repeat){ skipHeld = true; S.skip = true; markMode(); fireAdvance(); return; }
+  if (e.key==='h' || e.key==='H'){ setHideText(!textHidden()); return; }
+  if (textHidden()){ setHideText(false); return; }
+  if (e.key==='l' || e.key==='L' || e.key==='ArrowUp'){ openLog(); return; }
+  if (e.key==='a' || e.key==='A'){ setAuto(!S.auto); return; }
+  if ((e.key==='Enter'||e.key===' '||e.key==='ArrowDown') && !e.target.closest('button')){ e.preventDefault(); fireAdvance(); }
+});
+addEventListener('keyup', e=>{ if (e.key==='Control' && skipHeld){ skipHeld = false; S.skip = false; markMode(); } });
+addEventListener('blur', ()=>{ if (skipHeld){ skipHeld = false; S.skip = false; markMode(); } });
 
 /* ============ 6. WebGL：背景・仮立ち絵・liquid glass ============ */
 const FS = `precision highp float;

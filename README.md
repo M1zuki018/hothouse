@@ -57,3 +57,18 @@ ADV 部は Aube のコマンドパターンを踏襲。
 - order：`order_id / order_type / sequence / speaker_id / dialog_text / override_display_name / file_path / position / facial_expression / override_text_speed / duration`
 - `OrderHandler(type, fn)` で種類ごとにハンドラを登録
 - `StoryPlayer`：Append で群を区切り、Join は同時実行
+
+## 操作
+
+HUD は普段は出さない。マウスを右上の隅に寄せたときだけ LOG / AUTO / SKIP / MENU が出る。
+
+| 操作 | 内容 |
+|---|---|
+| クリック / Enter / Space / ↓ / ホイール下 | 読み進め（AUTO・SKIP 中にクリックすると止まる） |
+| ホイール上 / ↑ / L | ログ（ログの一番下でホイール下 → 閉じる） |
+| 右クリック / H / スマホは長押し | 文字を隠して絵だけを見る（もう一度クリックで戻す） |
+| Ctrl（押している間） | スキップ |
+| A | オート |
+| Esc | メニュー |
+
+AUTO・SKIP 中は右下に小さく表示が出る。
