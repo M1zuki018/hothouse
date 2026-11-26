@@ -42,28 +42,29 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 #phase{left:64px;top:56px;display:flex;align-items:baseline;gap:18px;font-size:25px;letter-spacing:.12em;text-shadow:0 2px 18px #000}
 #phase b{color:var(--gold);font-weight:600}
 #phase span{color:var(--ink)}
-#hud{position:absolute;z-index:1;right:54px;top:44px;display:flex;align-items:center;gap:12px}
+#hud{position:absolute;z-index:1;right:54px;bottom:10px;display:flex;align-items:center;gap:12px}
 #hudItems{display:flex;gap:10px}
 #hudItems[hidden]{display:none}
-.hbtn,#hudToggle{min-width:70px;height:56px;color:var(--ink);text-shadow:0 2px 8px #000,0 0 14px #000}
-.hbtn{padding:0 14px;font:600 24px/1 "Cormorant Garamond",serif;letter-spacing:.13em}
+.hbtn,#hudToggle{min-width:64px;height:50px;color:var(--ink);text-shadow:0 2px 8px #000,0 0 14px #000}
+.hbtn{padding:0 12px;font:600 22px/1 "Cormorant Garamond",serif;letter-spacing:.13em}
 .hbtn:hover,.hbtn.on,#hudToggle{color:var(--gold)}
-#hudToggle{font-size:31px}
+#hudToggle{font-size:26px}
 /* 没入：HUDは右上の隅に触れたときだけ。普段は画面に文字以外を出さない */
 #hud{opacity:0;transition:opacity .45s}
 #hud.awake,#hud:focus-within{opacity:1}
 /* 星のHUD：隅の星が集まって文字になり、離れるとほどけて夜空に還る */
-#hudSky{position:absolute;right:0;top:0;width:820px;height:230px;pointer-events:none}
+#hudSky{position:absolute;right:0;bottom:0;width:820px;height:230px;pointer-events:none}
 #hud.awake .hbtn{animation:hudIn .55s .45s both}
 @keyframes hudIn{from{opacity:0;filter:blur(3px)}to{opacity:1;filter:none}}
 @media (prefers-reduced-motion:reduce){#hud.awake .hbtn{animation-delay:0s}}
 #hud #hudToggle{opacity:0;transition:opacity .3s}
 #hud.awake #hudToggle,#hud:focus-within #hudToggle{opacity:1}
 .choosing #hudSky,.silent #hudSky,#game.hidetext #hudSky{visibility:hidden}
-#modeMark{position:absolute;right:64px;bottom:40px;font:600 20px/1 "Cormorant Garamond",serif;letter-spacing:.3em;color:var(--gold);text-shadow:0 0 12px #000;opacity:0;transition:opacity .4s;pointer-events:none}
+#modeMark{position:absolute;right:66px;bottom:26px;font:600 20px/1 "Cormorant Garamond",serif;letter-spacing:.3em;color:var(--gold);text-shadow:0 0 12px #000;opacity:0;transition:opacity .4s;pointer-events:none}
 #modeMark.on{opacity:.55;animation:breathe 2.4s ease-in-out infinite}
 @keyframes breathe{50%{opacity:.25}}
 #dialog.ready .nx{animation:breathe 2s ease-in-out infinite}
+#game:has(#hud.awake) #modeMark{visibility:hidden}
 #game.hidetext #dialog,#game.hidetext #phase,#game.hidetext #hud,#game.hidetext #modeMark{visibility:hidden}
 #dialog{inset:0;transition:opacity .2s}
 #dialog,#dialog.on{pointer-events:none}
@@ -724,7 +725,7 @@ const sky = (()=>{
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
   let k = 1, P = [], targets = [], raf = 0;
   // 隅にいつも瞬いている星（ここに何かある、という手がかり）
-  const idle = Array.from({length:9}, (_,i)=>({ x: W-470+i*52+Math.sin(i*7.1)*18, y: 64+Math.cos(i*3.3)*22, ph: i*1.7, r: .9+((i*37)%5)/6 }));
+  const idle = Array.from({length:9}, (_,i)=>({ x: W-470+i*52+Math.sin(i*7.1)*18, y: H-40+Math.cos(i*3.3)*12, ph: i*1.7, r: .9+((i*37)%5)/6 }));
   function resize(){ k = Math.min(2, Math.max(1, scale*(devicePixelRatio||1))); cv.width = W*k; cv.height = H*k; }
   function sample(){
     const sr = stage.getBoundingClientRect(), pts = [];
@@ -732,7 +733,7 @@ const sky = (()=>{
     for (const b of document.querySelectorAll('#hudItems .hbtn')){
       const r = b.getBoundingClientRect(), cs = getComputedStyle(b);
       const w = Math.ceil(r.width/scale), h = Math.ceil(r.height/scale);
-      const x0 = (r.left-sr.left)/scale - (1920-W), y0 = (r.top-sr.top)/scale;
+      const x0 = (r.left-sr.left)/scale - (1920-W), y0 = (r.top-sr.top)/scale - (1080-H);
       off.canvas.width = w; off.canvas.height = h; off.clearRect(0,0,w,h);
       off.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; off.letterSpacing = cs.letterSpacing;
       off.textAlign = 'center'; off.textBaseline = 'middle'; off.fillStyle = '#fff'; off.fillText(b.textContent, w/2, h/2+1);
@@ -754,7 +755,7 @@ const sky = (()=>{
   function sleep(){
     if (reduce.matches || !targets.length) return;
     const now = performance.now();
-    P = targets.map(([x,y])=>{ const a = -1.9+Math.random()*1.2, d = 30+Math.random()*90;
+    P = targets.map(([x,y])=>{ const a = -0.9+Math.random()*1.0, d = 30+Math.random()*80;
       return { sx:x, sy:y, tx: x+Math.cos(a)*d, ty: y+Math.sin(a)*d, t0: now+Math.random()*120, dur: 900+Math.random()*500, mode:'out' }; });
     loop();
   }
@@ -781,28 +782,30 @@ const sky = (()=>{
   addEventListener('resize', ()=>requestAnimationFrame(resize));
   return { wake, sleep, start(){ resize(); loop(); } };
 })();
-function setHud(open){
+function setHud(open, timed = false){
   const was = $('hud').classList.contains('awake');
-  if (open === was){ if (open){ clearTimeout(hudTimer); hudTimer = setTimeout(()=>{ if (!$('hud').matches(':hover,:focus-within')) setHud(false); }, 2200); } return; }
+  clearTimeout(hudTimer);
+  if (open && timed) hudTimer = setTimeout(()=>{ if (!$('hud').matches(':focus-within')) setHud(false); }, 3500);  // タップで開いたときだけ時間で閉じる
+  if (open === was) return;
   if (!open) sky.sleep();
   $('hud').classList.toggle('awake', open);
   $('hudItems').hidden = !open;
   if (open) sky.wake();
   $('hudToggle').setAttribute('aria-expanded', String(open));
-  clearTimeout(hudTimer);
-  if (open) hudTimer = setTimeout(()=>{
-    if (!$('hud').matches(':hover,:focus-within')) setHud(false);
-  }, 2200);
 }
 $('hudToggle').onclick = ()=>setHud($('hudItems').hidden);
-$('hud').addEventListener('pointerleave', ()=>{ if (!$('hud').matches(':focus-within')) setHud(false); });
 $('hud').addEventListener('focusout', e=>{ if (!$('hud').contains(e.relatedTarget)) setHud(false); });
+const inCorner = (x, y) => x > 1920-560 && y > 1080-84;
 const toStage = e => { const b = stage.getBoundingClientRect(); return [(e.clientX-b.left)/scale, (e.clientY-b.top)/scale]; };
 stage.addEventListener('pointermove', e=>{
   if (S.modal || $('game').matches('.hidden,.silent,.hidetext') || e.pointerType !== 'mouse') return;
   const [x, y] = toStage(e);
-  if (x > 1920-460 && y < 200) setHud(true);   // 右上の隅に寄ったときだけ出す
+  // 右下の隅かHUDの上にいる間だけ出す。外れたらすぐほどける
+  const on = inCorner(x, y) || !!e.target.closest('#hud');
+  if (!on && document.activeElement?.closest?.('#hud')) document.activeElement.blur();  // クリックで残ったフォーカスで居残らない
+  setHud(on);
 });
+stage.addEventListener('pointerleave', e=>{ if (e.pointerType === 'mouse' && !$('hud').matches(':focus-within')) setHud(false); });
 /* 自動送り・スキップ・文字隠しの状態 */
 let skipHeld = false;
 function markMode(){
@@ -859,7 +862,7 @@ stage.addEventListener('click', e=>{
   if (S.modal || !inGame() || e.target.closest('button')) return;
   if (longPressed){ longPressed = false; return; }
   if (textHidden()){ setHideText(false); return; }        // 文字を隠しているときのクリックは「戻す」だけ
-  { const [x, y] = toStage(e); if (x > 1920-460 && y < 200 && !$('hud').classList.contains('awake')){ setHud(true); return; } } // 隅のタップでHUD
+  { const [x, y] = toStage(e); if (inCorner(x, y) && !$('hud').classList.contains('awake')){ setHud(true, e.pointerType !== 'mouse'); return; } } // 隅のタップでHUD
   if (S.auto || S.skip){ setAuto(false); setSkip(false); }  // 手で送ったら自動は止める
   fireAdvance();
 });
