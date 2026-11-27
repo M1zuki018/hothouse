@@ -1901,7 +1901,10 @@ const BG_IMG = { observatory:'assets/bg_observatory.jpg', slope:'assets/bg_slope
 const CG_IMG = { cg_01:'assets/cg_01.jpg', cg_02:'assets/cg_02.jpg', cg_03:'assets/cg_03.jpg', cg_04:'assets/cg_04.jpg' };
 const FX_IMG = { meteor:'assets/fx_meteor.png', shower:'assets/fx_shower.png', sparkle:'assets/fx_sparkle.png' };
 const POS = { Left:0, Center:1, Right:2, Near:1 };
-const SLOT_X = [680, 960, 1240];
+const SLOT_X = [560, 960, 1360];
+// 立ち絵の大きさ：腰から上が画面に入るバストアップ。身長(cm)に比例させるので、背の差はそのまま出る
+// SPRITE_PX_PER_CM：1cmあたりの画面px ／ SPRITE_FEET_Y：足もとの位置（画面の下端より下）
+const SPRITE_PX_PER_CM = 10.8, SPRITE_FEET_Y = 1080 + 880;
 
 /* ============ 2. 状態とビュー ============ */
 const $ = id => document.getElementById(id);
@@ -2651,7 +2654,7 @@ function frame(t){
     if (ch && c.a>0){ const v = ch.fx && ch.fx[c.fx] ? tex(ch.fx[c.fx]) : null; t = v && v.ready ? v : tex(ch.img); }
     const ok = bindTex(2+i, t);
     tOn[i] = ok ? 1 : 0;
-    if (ok){ const h = ch.cm*8, w = h*t.w/t.h; tR.set([SLOT_X[i]-w/2, 1080+400-h, w, h], i*4); }
+    if (ok){ const h = ch.cm*SPRITE_PX_PER_CM, w = h*t.w/t.h; tR.set([SLOT_X[i]-w/2, SPRITE_FEET_Y-h, w, h], i*4); }
   });
   gl.uniform1fv(U.uTOn, tOn); gl.uniform4fv(U.uTR, tR);
   const fm = bindTex(5, tex(FX_IMG.meteor)), fs = bindTex(6, tex(FX_IMG.shower, true)), fk = bindTex(7, tex(FX_IMG.sparkle, true));
