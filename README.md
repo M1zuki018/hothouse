@@ -42,6 +42,7 @@
 | `@meteor 秒` / `@flash 秒` / `@shake` | 演出 |
 | `@wait 秒` | 字幕と操作表示を消して待機 |
 | `@phase 大\|小` | 左上に章題を一時表示 |
+| `@cmd 命令` | ゲーム側への命令（例：`@cmd param love_j 10; param mourn 6`） |
 | `@monologue 本文` | 独白を画面中央に表示 |
 | `@cg 名前 秒` / `@cg off 秒` | スチル表示 / 消去 |
 | `@shower 強さ 秒` | 流星群テクスチャ（0で消える） |

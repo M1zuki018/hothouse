@@ -194,6 +194,7 @@ const J = 'Join';
    @bg 背景  @in 名前 位置 秒  @out 名前 秒  @clear 秒  @fadein 秒  @fadeout 秒
    @in 名前 位置 秒 表情（表情は省略可：Default / Live など）
    @meteor 秒  @flash 秒  @shake  @wait 秒  @phase 大|小  @head 場面|題|説明
+   @cmd 命令（GameCommand をそのまま渡す。例：@cmd param love_j 10; param mourn 6）
    @cg 名前 秒 / @cg off 秒  @shower 強さ 秒  @sparkle 強さ 秒  @monologue 本文
    ＞ラベル（連続行で複数）。直後の ｜行 はその選択肢だけの分岐、分岐後は次の行に合流
    ＞「台詞」のようにラベルを「」で囲むと、選んだあと主人公の台詞として表示
@@ -222,6 +223,7 @@ function fromScript(src, id){
       else if (c==='shake')   add(join,'CameraShake');
       else if (c==='wait')    add(join,'Wait',0,'','','','Center',n||1);
       else if (c==='phase')   add(join,'GameCommand',0,'phase '+a.join(' '));
+      else if (c==='cmd')     add(join,'GameCommand',0,a.join(' '));
       else if (c==='monologue') add(join,'Descriptive',0,a.join(' '),'','','monologue');
       else if (c==='head')    head = a.join(' ');
       else if (c==='cg')      add(join,'ShowCG',0,'','',a[0],'Center',a[1]!==undefined?+a[1]:1);
@@ -480,31 +482,66 @@ const PROLOGUE = `
 硝子の向こうで、ルネが、また後ろを振り返った。
 `;
 
+const CHAPTER1 = `
+？？？＝カリル：会いに行っておいで。
+
+@fadeout 1.2
++@clear 1
+@phase 第1章|ルネの部屋
+@bg room
+@in ルネ Center .1
++@fadein 1.6
+その夜、僕はルネの部屋にいた。
+どうやって来たのかは、わからない。気がついたら、ここにいた。
+ルネはベッドの上で、ひざを抱えてた。電気は消えてるのに、目はずっと開いてた。
+窓の外で、流れ星はもう流れてなかった。
+@head ルネの部屋||ルネは、眠れずにいる。
+＞夢に出る
+｜@cmd param love_j 10
+｜ルネの夢の中に入った。ルネは僕を見て、ちょっとだけ笑った。
+｜目が覚めると、ルネはまた泣いてた。
+＞割れたクッキーを見つけさせる
+｜@cmd param love_j 6; param mourn 6
+｜缶の底に、割れたクッキーがひとかけら残ってた。星のとがったところがある、あのかけら。
+｜ルネは長いあいだ、それを見てた。
+＞ただ、そばにいる
+｜@cmd param love_j 3
+｜何もしないで、ベッドのはしに座ってた。ルネは気づかない。
+｜それでも、ルネの息が、少しだけゆっくりになった。
+＞机の写真立てを倒す
+｜@cmd param mourn 16; param limit -14
+｜机の写真立てが、ぱたんと倒れた。三人で撮った写真だった。
+｜ルネはびくっとして、それきり朝まで眠らなかった。
+
+@fadeout 1
++@clear 1
+@phase 第1章|次の夜
+@in ルネ Center .1
++@fadein 1.4
+次の夜も、僕はルネの部屋に行った。
+ルネの机の上に、見覚えのあるものが置いてあった。
+真鍮の、望遠鏡。
+テオの首に下がってた、あの望遠鏡だった。
+あの夜、テオと一緒に落ちたはずなのに。
+僕は、何もしてない。
+ルネは望遠鏡を胸に抱いて、窓の外を見てた。
+ルネ：……テオ。
+@cmd anomaly love_t 14
+ルネが呼んだのは、テオの名前だけだった。
+僕じゃないだれかが、ルネのそばにいる。
+`;
+
 const SCENE = { resource_id: 'hh_0000000000001', orders: [
   r(1,'Start'),
   ...fromScript(PROLOGUE, 1000),
-  r(49,'GameCommand','Append',0,'phase 第1章|介入'),
-  r(50,'Choice','Append',0,'夢に出る-51,割れたクッキーを見つけさせる-54,ただ、そばにいる-66,机の写真立てを倒す-57','ルネの部屋|介入|眠れないルネに、何をする？'),
-  r(51,'GameCommand','Append',0,'param love_j 10'),
-  r(52,'Descriptive','Append',0,'夢の中で、ルネは少しだけ笑った。目が覚めると、また泣いた。'), r(53,'Jump','Append',0,'60'),
-  r(54,'GameCommand','Append',0,'param love_j 6; param mourn 6'),
-  r(55,'Descriptive','Append',0,'缶の底に、半分に割ったクッキーが一枚残っていた。ルネは長いあいだ、それを見ていた。'), r(56,'Jump','Append',0,'60'),
-  r(57,'GameCommand','Append',0,'param mourn 16; param limit -14'),
-  r(58,'Descriptive','Append',0,'写真立てが倒れる音で、ルネは目を覚ました。それきり、朝まで眠れなかった。'), r(59,'Jump','Append',0,'60'),
-  r(66,'GameCommand','Append',0,'param love_j 3'),
-  r(67,'Descriptive','Append',0,'ルネは気づかない。それでも、少しだけ呼吸が深くなった。'), r(68,'Jump','Append',0,'60'),
-  r(60,'GameCommand','Append',0,'phase 第1章|夜の観測'),
-  r(61,'Descriptive','Append',0,'夜の観測。ルネの数値を、自分の介入と照らし合わせる。'),
-  r(62,'GameCommand','Append',0,'anomaly love_t 14'),
-  r(63,'Descriptive',J,0,'……おかしい。何もしていないのに、ルネの想いがテオのほうへ動いている。'),
-  r(64,'Descriptive','Append',0,'自分ではない誰かが、裏でルネに手を伸ばしている。'),
-  r(65,'End')
+  ...fromScript(CHAPTER1, 3000),
+  r(9999,'End')
 ]};
 const CHARS = { 1:{n:'カリル',c:[.86,.68,.33],s:1.12,cm:178,img:'assets/chr_01_khalil.png'}, 2:{n:'フィルウ',c:[.36,.56,.96],s:1.04,cm:176,img:'assets/chr_02_filou.png'},
   3:{n:'テオ',c:[.96,.87,.6],s:.86,cm:140,img:'assets/chr_03_theo.png',fx:{Live:'assets/chr_03_theo_live.png'}}, 5:{n:'リヴ',c:[.84,.8,.76],s:.98,cm:162,img:'assets/chr_05_liv.png'},
   6:{n:'レイフ',c:[.7,.76,.84],s:1,cm:168,img:'assets/chr_06_leif.png'}, 7:{n:'ルネ',c:[.97,.6,.7],s:.86,cm:137,img:'assets/chr_07_rene.png'} };
 // 背景キー → 手続き背景の番号（画像が読めないときの代替）と画像
-const SCENES = { lab:0, observatory:1, church:2, slope:1 };
+const SCENES = { lab:0, observatory:1, church:2, slope:1, room:1 };  // room は画像ができるまで夜空の手続き背景で代用
 const BG_IMG = { observatory:'assets/bg_observatory.jpg', slope:'assets/bg_slope.jpg' };
 const CG_IMG = { cg_01:'assets/cg_01.jpg', cg_02:'assets/cg_02.jpg', cg_03:'assets/cg_03.jpg', cg_04:'assets/cg_04.jpg' };
 const FX_IMG = { meteor:'assets/fx_meteor.png', shower:'assets/fx_shower.png', sparkle:'assets/fx_sparkle.png' };
