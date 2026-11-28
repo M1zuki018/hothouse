@@ -113,3 +113,4 @@ Aube の AubeDebugWindow と同じ作り（登録簿と画面を分ける／行�
 | `plot.md` | プロット（方針、カリルの「おかえり」、章ごとの流れ、設定の改訂点、結末と分岐） |
 | `scenario.txt` | シナリオ（プロローグ〜結末＋追加章の骨組み）。`index.html` の `PROLOGUE` と `EXTRA` に入っているものと同じ |
 | `HOTHOUSE_art_brief.md` | 画像生成用のアートブリーフ |
+| `stage_fx.md` | 演出エンジン（背景シェーダー・画面効果・演出トラック `js/stage-cues.js`）の使い方 |
